@@ -77,6 +77,7 @@ Fora do escopo por enquanto: port das regras de preço, cobrança, G-Tag, tabela
 
 ## Como trabalhar nos repositórios
 
+- Rodar tudo na máquina em modo de desenvolvimento: `avant-infra/docs/desenvolvimento.md` ([link](https://github.com/PedroH3nri/avant-infra/blob/develop/docs/desenvolvimento.md)).
 - Branches `feat/...` ou `fix/...` a partir de `develop`; PR para `develop`. `develop` publica em staging, `main` em produção.
 - O Claude pode fazer merge dos próprios PRs em `develop` quando o CI passa e não há comentário pendente. `main` e produção ficam com o Pedro.
 - Tags do `avant-core` saem pela GitHub Action `release.yml` quando a versão do `pyproject.toml` muda (push de tag direto pode ser bloqueado).

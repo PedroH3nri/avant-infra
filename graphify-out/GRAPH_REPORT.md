@@ -1,17 +1,17 @@
 # Graph Report - avant-infra  (2026-10-23)
 
 ## Corpus Check
-- 18 files · ~19,117 words
+- 19 files · ~20,724 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 10 file(s) not represented in the graph (top: (none) 3, .example 2, .env 2)
 
 ## Summary
-- 411 nodes · 540 edges · 33 communities (30 shown, 3 thin omitted)
+- 426 nodes · 555 edges · 26 communities (23 shown, 3 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8228ec9d`
+- Built from commit: `f281e8c5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -36,16 +36,9 @@
 - Avant: conexão com o GAM
 - rabbitmq
 - Avant: repositório e plano do MVP
-- api-blue
 - api-green
 - scrape_configs
-- avant-infra
-- worker
-- x-worker
-- replicas
-- web-blue
-- web-green
-- x-web
+- Rodar o Avant em modo de desenvolvimento
 - avant-infra
 - session-start.sh
 - 01-roles.sh
@@ -54,13 +47,13 @@
 1. `options` - 18 edges
 2. `driver` - 16 edges
 3. `Groone Avant: contexto do projeto` - 14 edges
-4. `services` - 13 edges
-5. `deploy.sh script` - 12 edges
-6. `Arquitetura do MVP do Avant` - 12 edges
-7. `api-blue` - 11 edges
-8. `api-green` - 11 edges
-9. `worker-gam` - 11 edges
-10. `scheduler` - 11 edges
+4. `Rodar o Avant em modo de desenvolvimento` - 14 edges
+5. `services` - 13 edges
+6. `deploy.sh script` - 12 edges
+7. `Arquitetura do MVP do Avant` - 12 edges
+8. `api-blue` - 11 edges
+9. `api-green` - 11 edges
+10. `worker-gam` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
 - None detected - all connections are within the same source files.
@@ -68,7 +61,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (33 total, 3 thin omitted)
+## Communities (26 total, 3 thin omitted)
 
 ### Community 0 - "services"
 Cohesion: 0.06
@@ -83,16 +76,16 @@ Cohesion: 0.09
 Nodes (26): AVANT_APP_PASSWORD, AVANT_OWNER_PASSWORD, POSTGRES_DB, POSTGRES_PASSWORD, POSTGRES_USER, RABBITMQ_DEFAULT_PASS, RABBITMQ_DEFAULT_USER, interval (+18 more)
 
 ### Community 3 - "services"
-Cohesion: 0.08
-Nodes (25): name, file, name, networks, avant, command, env_file, image (+17 more)
+Cohesion: 0.07
+Nodes (26): env_file, image, logging, networks, profiles, restart, stop_grace_period, name (+18 more)
 
 ### Community 4 - "nginx"
 Cohesion: 0.12
 Nodes (21): interval, retries, test, healthcheck, image, logging, networks, ports (+13 more)
 
 ### Community 5 - "postgres"
-Cohesion: 0.18
-Nodes (19): depends_on, depends_on, postgres, rabbitmq, redis, condition, condition, condition (+11 more)
+Cohesion: 0.31
+Nodes (13): depends_on, depends_on, postgres, rabbitmq, redis, condition, condition, condition (+5 more)
 
 ### Community 6 - "Groone Avant: contexto do projeto"
 Cohesion: 0.12
@@ -119,8 +112,8 @@ Cohesion: 0.14
 Nodes (13): Ambientes, deploy e backup, Arquitetura do MVP do Avant, Controle de acesso no estilo do Defender, Decisões e perguntas em aberto, Endpoints da API REST, Estrutura do repositório, Fluxos, Isolamento, autenticação e permissões (+5 more)
 
 ### Community 12 - "options"
-Cohesion: 0.21
-Nodes (12): logging, driver, options, max-file, max-size, logging, logging, x-app (+4 more)
+Cohesion: 0.05
+Nodes (44): driver, options, max-file, max-size, logging, web-blue, web-green, worker (+36 more)
 
 ### Community 13 - "Requisitos do novo SaaS AdTech Groone"
 Cohesion: 0.17
@@ -150,45 +143,17 @@ Nodes (9): RABBITMQ_DEFAULT_PASS, RABBITMQ_DEFAULT_USER, environment, image, log
 Cohesion: 0.22
 Nodes (8): Avant: repositório e plano do MVP, Decisões de Pedro (23/10/2026), Estrutura de pastas, Pipeline, Plano até 31/12, Primeira semana (23/10 a 02/11), Resumo, Serviços e ferramentas
 
-### Community 20 - "api-blue"
-Cohesion: 0.25
-Nodes (8): deploy, env_file, image, networks, profiles, restart, stop_grace_period, api-blue
-
 ### Community 21 - "api-green"
-Cohesion: 0.25
-Nodes (8): env_file, image, logging, networks, profiles, restart, stop_grace_period, api-green
+Cohesion: 0.08
+Nodes (26): deploy, deploy, env_file, image, logging, networks, profiles, restart (+18 more)
 
 ### Community 22 - "scrape_configs"
 Cohesion: 0.25
 Nodes (7): global, scrape_interval, scrape_configs, job_name, metrics_path, static_configs, targets
 
-### Community 23 - "avant-infra"
-Cohesion: 0.25
-Nodes (7): Arquivos na VM, avant-infra, Deploy, Primeiro boot, Rodar localmente, Segredos, VMs (staging e produção)
-
-### Community 24 - "worker"
-Cohesion: 0.29
-Nodes (7): worker, command, env_file, image, networks, restart, stop_grace_period
-
-### Community 25 - "x-worker"
-Cohesion: 0.29
-Nodes (7): x-worker, env_file, image, logging, networks, restart, stop_grace_period
-
-### Community 26 - "replicas"
-Cohesion: 0.33
-Nodes (6): deploy, replicas, deploy, deploy, deploy, deploy
-
-### Community 27 - "web-blue"
-Cohesion: 0.33
-Nodes (6): web-blue, image, logging, networks, profiles, restart
-
-### Community 28 - "web-green"
-Cohesion: 0.33
-Nodes (6): web-green, image, logging, networks, profiles, restart
-
-### Community 29 - "x-web"
-Cohesion: 0.40
-Nodes (5): x-web, deploy, logging, networks, restart
+### Community 23 - "Rodar o Avant em modo de desenvolvimento"
+Cohesion: 0.09
+Nodes (21): 10. Testes, 11. Mudando o avant-core junto com a API ou o worker, 12. Problemas comuns, 1. O que instalar, 2. Clonar os cinco repositórios lado a lado, 3. Subir Postgres, RabbitMQ e Redis, 4. Variáveis da aplicação, 5. Migrations e primeiro usuário (+13 more)
 
 ## Knowledge Gaps
 - **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
@@ -196,17 +161,17 @@ Nodes (5): x-web, deploy, logging, networks, restart
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `services` connect `services` to `nginx`, `postgres`, `worker-gam`, `migrate`, `rabbitmq`, `api-blue`, `api-green`, `worker`, `web-blue`, `web-green`?**
-  _High betweenness centrality (0.129) - this node is a cross-community bridge._
+- **Why does `services` connect `services` to `nginx`, `postgres`, `options`, `worker-gam`, `migrate`, `rabbitmq`, `api-green`?**
+  _High betweenness centrality (0.120) - this node is a cross-community bridge._
 - **Should `services` be split into smaller, more focused modules?**
   _Cohesion score 0.05668016194331984 - nodes in this community are weakly interconnected._
 - **Why does `postgres` connect `postgres` to `services`, `nginx`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+  _High betweenness centrality (0.028) - this node is a cross-community bridge._
 - **Should `Avant: models do MVP` be split into smaller, more focused modules?**
   _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
 - **Why does `worker-gam` connect `worker-gam` to `APP_BASE_URL`, `services`, `postgres`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
+  _High betweenness centrality (0.024) - this node is a cross-community bridge._
 - **Should `environment` be split into smaller, more focused modules?**
   _Cohesion score 0.08923076923076922 - nodes in this community are weakly interconnected._
 - **Should `services` be split into smaller, more focused modules?**
-  _Cohesion score 0.07692307692307693 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
