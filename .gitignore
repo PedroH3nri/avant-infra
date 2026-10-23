@@ -4,3 +4,4 @@
 secrets/
 *.json.key
 gam-service-account.json
+!compose/*/vm.env

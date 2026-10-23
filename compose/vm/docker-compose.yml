@@ -1,0 +1,203 @@
+# Avant nas VMs (staging e produção). O mesmo arquivo serve os dois ambientes:
+#   compose/<ambiente>/vm.env        o que muda entre ambientes (no Git, sem segredos)
+#   /srv/avant/<ambiente>/compose.env senhas do Postgres e do RabbitMQ (só na VM)
+#   /srv/avant/<ambiente>/app.env     segredos da aplicação (só na VM)
+#   /srv/avant/<ambiente>/release.env tags em uso, escrito pelo deploy.sh
+#
+# As URLs de banco, fila e Redis são montadas aqui a partir das senhas: a API e o worker
+# recebem só a senha do avant_app; a do avant_owner vai só para o serviço migrate.
+# Use senhas só com letras e números (entram em URLs).
+#
+# Não rode à mão: use scripts/deploy.sh, que escolhe a cor, roda as migrations e
+# troca o nginx.
+#
+# API e web têm duas cores (blue e green). Só uma recebe tráfego; a outra fica parada
+# com a versão anterior, pronta para voltar (scripts/deploy.sh <ambiente> rollback api).
+
+name: avant-${AVANT_ENV:?defina AVANT_ENV}
+
+x-env: &env
+  AVANT_ENV: ${AVANT_ENV}
+  APP_BASE_URL: ${APP_BASE_URL:?defina APP_BASE_URL}
+  DATABASE_URL: postgresql+psycopg://avant_app:${AVANT_APP_PASSWORD:?defina no compose.env}@postgres:5432/${POSTGRES_DB:-avant}
+  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-avant}:${RABBITMQ_PASSWORD:?defina no compose.env}@rabbitmq:5672//
+  REDIS_URL: redis://redis:6379/0
+
+x-app: &app
+  env_file:
+    - ${AVANT_STATE_DIR:?defina AVANT_STATE_DIR}/app.env
+  environment: *env
+  restart: unless-stopped
+  logging: &logging
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+  networks: [avant]
+
+x-api: &api
+  <<: *app
+  deploy:
+    replicas: ${API_REPLICAS:-1}
+  stop_grace_period: 30s
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+
+x-web: &web
+  restart: unless-stopped
+  logging: *logging
+  networks: [avant]
+  deploy:
+    replicas: ${WEB_REPLICAS:-1}
+
+x-worker: &worker
+  <<: *app
+  image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-worker:${WORKER_TAG:-none}
+  # O Celery termina as tarefas em andamento antes de sair (acks_late devolve o resto).
+  stop_grace_period: 5m
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-avant}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?defina no compose.env}
+      AVANT_OWNER_PASSWORD: ${AVANT_OWNER_PASSWORD:?defina no compose.env}
+      AVANT_APP_PASSWORD: ${AVANT_APP_PASSWORD}
+    command: ["postgres", "-c", "max_connections=${POSTGRES_MAX_CONNECTIONS:-200}", "-c", "shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../../postgres/init:/docker-entrypoint-initdb.d:ro
+    # Só pela rede interna; o backup (pgBackRest) entra pelo endereço local da VM.
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *logging
+    networks: [avant]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-avant}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+    logging: *logging
+    networks: [avant]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-512mb}", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *logging
+    networks: [avant]
+
+  # Migrations como avant_owner, com a imagem da API que vai entrar. Roda antes da troca
+  # de cor, então toda migration precisa funcionar com a versão anterior ainda no ar.
+  migrate:
+    image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-api:${MIGRATE_TAG:-none}
+    profiles: ["tools"]
+    environment:
+      DATABASE_MIGRATIONS_URL: postgresql+psycopg://avant_owner:${AVANT_OWNER_PASSWORD:?defina no compose.env}@postgres:5432/${POSTGRES_DB:-avant}
+    logging: *logging
+    networks: [avant]
+    command: ["alembic", "-c", "/etc/avant/alembic.ini", "upgrade", "head"]
+    volumes:
+      - ./alembic.ini:/etc/avant/alembic.ini:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api-blue:
+    <<: *api
+    image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-api:${API_BLUE_TAG:-none}
+    profiles: ["blue"]
+
+  api-green:
+    <<: *api
+    image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-api:${API_GREEN_TAG:-none}
+    profiles: ["green"]
+
+  web-blue:
+    <<: *web
+    image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-web:${WEB_BLUE_TAG:-none}
+    profiles: ["blue"]
+
+  web-green:
+    <<: *web
+    image: ${IMAGE_PREFIX:-ghcr.io/pedroh3nri}/avant-web:${WEB_GREEN_TAG:-none}
+    profiles: ["green"]
+
+  # Filas default e mail. Sem a chave do GAM.
+  worker:
+    <<: *worker
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail", "-c", "${WORKER_CONCURRENCY:-4}", "-n", "worker@%h", "-l", "info"]
+
+  # Fila gam: só aqui entra a chave da conta de serviço. Concorrência baixa por causa
+  # da cota da API do Ad Manager.
+  worker-gam:
+    <<: *worker
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "gam", "-c", "${WORKER_GAM_CONCURRENCY:-2}", "-n", "gam@%h", "-l", "info"]
+    environment:
+      <<: *env
+      GAM_SERVICE_ACCOUNT_FILE: /run/secrets/gam-service-account.json
+    secrets:
+      - source: gam-service-account
+        target: gam-service-account.json
+
+  # Um só agendador por ambiente, senão as tarefas periódicas saem em dobro.
+  scheduler:
+    <<: *worker
+    command: ["celery", "-A", "avant_worker.app", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule"]
+    deploy:
+      replicas: 1
+    stop_grace_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ../../nginx/vm.conf:/etc/nginx/conf.d/default.conf:ro
+      # Arquivos gerados pelo deploy.sh: para qual cor vai cada serviço.
+      - ${AVANT_STATE_DIR}/upstreams:/etc/nginx/avant:ro
+    # TLS fica no proxy da VM (nginx do host, com certbot); este escuta só localmente.
+    ports:
+      - "${AVANT_HTTP_BIND:-127.0.0.1:8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      retries: 3
+    restart: unless-stopped
+    logging: *logging
+    networks: [avant]
+
+secrets:
+  gam-service-account:
+    file: ${AVANT_STATE_DIR}/gam-service-account.json
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  redis-data:
+
+networks:
+  avant:
+    name: avant-${AVANT_ENV}
