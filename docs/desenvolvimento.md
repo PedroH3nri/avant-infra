@@ -15,10 +15,19 @@ navegador → http://localhost:5173  (Vite, avant-web)
 | Ferramenta | Versão | Para quê |
 | --- | --- | --- |
 | Docker com Compose | 24 ou mais | Postgres 16, RabbitMQ 3.13 e Redis 7 |
-| [uv](https://docs.astral.sh/uv/) | 0.5 ou mais | Python 3.12 e dependências do core, da API e do worker |
-| Node.js e pnpm | Node 20+, pnpm 9+ | painel Vue |
+| [uv](https://docs.astral.sh/uv/) | 0.5 ou mais | Python 3.12 (o uv baixa sozinho) e dependências do core, da API e do worker |
+| Node.js e pnpm | Node 24, pnpm 10.28 (o `packageManager` do avant-web) | painel Vue |
 | git e acesso ao GitHub | | o avant-core é privado e a API e o worker o instalam por tag do Git |
 | graphify (opcional) | `uv tool install graphifyy` | atualizar o grafo do código (`graphify update .`) |
+
+No macOS (Intel ou Apple Silicon), pelo Homebrew:
+
+```bash
+brew install uv node@24     # siga o aviso do brew para pôr o node@24 no PATH
+corepack enable             # vem com o Node; usa o pnpm do packageManager
+```
+
+Em Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` para o uv e o Node 24 pelo gerenciador que preferir (nvm, fnm, mise), depois `corepack enable`. Confira com `uv --version` e, dentro do `avant-web`, `pnpm --version` (10.28.0).
 
 O `uv sync` da API e do worker baixa o avant-core pelo GitHub. Se o seu git ainda não autentica no GitHub, rode `gh auth login` (ou configure uma chave SSH) antes.
 
@@ -80,6 +89,8 @@ Gere a `MFA_ENCRYPTION_KEY` uma vez e cole no arquivo. Se trocar a chave, o 2FA 
 ```bash
 cd avant-core && uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+Sem o uv ainda, o openssl gera uma chave equivalente: `openssl rand -base64 32 | tr '+/' '-_'` (44 caracteres, terminando em `=`).
 
 Em cada terminal dos passos seguintes, carregue o arquivo antes de rodar os comandos:
 
@@ -212,6 +223,7 @@ Use `--no-sync` enquanto estiver testando: um `uv run` sem ele (ou um `uv sync`)
 | Sintoma | Causa e solução |
 | --- | --- |
 | `uv sync` da API ou do worker falha ao baixar o `avant-core` | o git não autentica no GitHub: `gh auth login` |
+| `relation "companies" does not exist` (no bootstrap ou na API) | as migrations não rodaram nesse banco: `uv run alembic upgrade head` no avant-core (passo 5). O Postgres do Docker cria só o banco vazio e os papéis |
 | A API não sobe: `database_url` ou `mfa_encryption_key` "Field required" | o `dev.env` não foi carregado neste terminal |
 | Login responde 403 `mfa_required` em tudo | a equipe Groone precisa configurar o 2FA; o painel leva para essa tela |
 | Tabelas aparecem vazias ou `permission denied` | rodou a aplicação como `avant_owner`/`postgres`, ou criou um banco sem os privilégios do passo 10 |
