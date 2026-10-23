@@ -17,18 +17,16 @@ Repositórios do Avant: `avant-core`, `avant-api`, `avant-worker`, `avant-web`, 
 
 ## Rodar localmente
 
-Clone os repositórios do Avant lado a lado na mesma pasta e, dentro de `avant-infra`:
+O passo a passo completo do modo de desenvolvimento (serviços no Docker, API, worker e painel no terminal, primeiro usuário e testes) está em [`docs/desenvolvimento.md`](docs/desenvolvimento.md).
+
+Resumo: com os cinco repositórios clonados lado a lado, dentro de `avant-infra`:
 
 ```sh
 cp .env.example .env          # preencha as senhas
 docker compose -f compose/local/docker-compose.yml --env-file .env up -d
 ```
 
-Isso sobe só Postgres, RabbitMQ e Redis. Para subir também API, worker, scheduler, web e nginx (em `http://localhost:8080`), quando esses repositórios existirem localmente:
-
-```sh
-docker compose -f compose/local/docker-compose.yml --env-file .env --profile app up -d
-```
+Isso sobe Postgres, RabbitMQ e Redis. O perfil `app`, que sobe também a aplicação em containers, ainda não funciona ([#16](https://github.com/PedroH3nri/avant-infra/issues/16)).
 
 ## VMs (staging e produção)
 
