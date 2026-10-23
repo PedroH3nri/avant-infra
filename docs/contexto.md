@@ -128,7 +128,7 @@ Cópias em Markdown em `docs/decisoes/` de cada repositório. São o registro da
 
 - `docs/skills/` tem todas as skills que o repositório usa: as do Avant (`avant-*`), as do [superpowers](https://github.com/obra/superpowers) e a do [graphify](https://github.com/Graphify-Labs/graphify). O `docs/skills/README.md` diz quando usar cada uma. `.claude/skills` aponta para essa pasta.
 - O `.claude/settings.json` carrega a `using-superpowers` no começo de cada sessão.
-- graphify: `uv tool install graphifyy` e `graphify update .` montam o grafo do código em `graphify-out/` (local, sem LLM). Consulte com `graphify query "..."` em vez de sair lendo arquivo por arquivo.
+- graphify: o grafo do código está versionado em `graphify-out/` de cada repositório (`GRAPH_REPORT.md` para ler; `graph.json` para `graphify query "..."`, `graphify path "A" "B"` e `graphify explain "X"`). Consulte antes de sair lendo arquivo por arquivo. Depois de mudar código, rode `graphify update .` (instale com `uv tool install graphifyy`; é local e sem LLM) e commite o grafo junto. O `.graphifyignore` deixa as skills de terceiros de fora.
 
 ## Dicas de ambiente para o agente
 

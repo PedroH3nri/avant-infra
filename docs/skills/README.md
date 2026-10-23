@@ -37,7 +37,7 @@ O superpowers tem telemetria opcional no "visual companion" da `brainstorming`. 
 
 ## graphify
 
-A skill chama a ferramenta `graphify`, que precisa estar instalada na máquina:
+O grafo já vem versionado em `graphify-out/` (`graph.json` e `GRAPH_REPORT.md`). Para consultar ou atualizar, a ferramenta `graphify` precisa estar instalada na máquina:
 
 ```bash
 uv tool install graphifyy        # pacote oficial, com dois y
