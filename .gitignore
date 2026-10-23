@@ -1,0 +1,6 @@
+.env
+*.env
+!.env.example
+secrets/
+*.json.key
+gam-service-account.json
