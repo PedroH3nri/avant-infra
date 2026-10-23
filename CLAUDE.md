@@ -9,3 +9,9 @@ Infraestrutura do Groone Avant (docker compose, nginx, Postgres, monitoramento, 
 - `/api/v1/metrics` nunca exposto para a internet.
 - Branches: trabalho em `feat/...` ou `fix/...` a partir de `develop`, PR para `develop`. `develop` publica em staging e `main` em produção.
 - Textos de documentação e comentários em português.
+
+## Contexto, issues e skills
+
+- Comece por `docs/contexto.md`: produto, decisões, estado dos cinco repositórios e onde está cada coisa. Decisões antigas em `docs/decisoes/`.
+- Todo trabalho parte de uma issue com milestone neste repositório (`gh issue list --milestone ...`). Pedido sem issue vira issue antes.
+- Skills em `docs/skills/` (índice em `docs/skills/README.md`); `.claude/skills` aponta para lá. Comece pela `avant-fluxo-de-trabalho`.
