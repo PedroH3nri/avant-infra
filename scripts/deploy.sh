@@ -160,7 +160,7 @@ case "$ACTION" in
       color="$(get "$(upper "$service")_ACTIVE")"
       if [[ -n "$color" ]]; then compose up -d --no-deps "$service-$color"; fi
     done
-    if [[ -n "$(get WORKER_TAG)" ]]; then compose up -d worker worker-gam scheduler; fi
+    if [[ -n "$(get WORKER_TAG)" ]]; then compose up -d worker worker-gam scheduler celery-exporter; fi
     ;;
   api|web)
     [[ -n "$ARG" ]] || die "faltou a tag"
@@ -175,7 +175,7 @@ case "$ACTION" in
     # O Celery termina as tarefas em andamento (stop_grace_period) e acks_late devolve o
     # resto para a fila; o scheduler troca por último para não agendar em dobro.
     compose up -d worker worker-gam
-    compose up -d scheduler
+    compose up -d scheduler celery-exporter
     log "worker, worker-gam e scheduler em avant-worker:$ARG"
     ;;
   rollback)

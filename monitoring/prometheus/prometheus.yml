@@ -11,4 +11,5 @@ scrape_configs:
 
   - job_name: avant-worker
     static_configs:
-      - targets: ["worker:9808"]
+      # celery-exporter: tarefas por nome e estado, duração e tamanho das filas.
+      - targets: ["celery-exporter:9808"]
