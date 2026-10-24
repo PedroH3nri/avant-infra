@@ -105,6 +105,7 @@ O que fica de fora em desenvolvimento, e o que acontece sem cada variável:
 | `RESEND_API_KEY` | nenhum e-mail sai. O envio vai para o log da API, com o link (convite, nova senha) |
 | `GOOGLE_OAUTH_CLIENT_ID` e `_SECRET` | o botão "Entrar com Google" responde `google_unavailable` |
 | `GAM_SERVICE_ACCOUNT_FILE` e `GAM_GROONE_NETWORK_CODE` | as tarefas da fila `gam` falham com "defina GAM_SERVICE_ACCOUNT_FILE..." e a network fica com erro. O resto do painel funciona |
+| `PAGE_VIEWS_MONGO_URL` | o agendador não sincroniza as visitas e a tela Page Views fica vazia. Use um usuário só de leitura no Mongo do iGroone/data |
 
 Para testar o GAM de verdade, peça ao Pedro a chave da conta de serviço. Guarde fora dos repositórios e aponte `GAM_SERVICE_ACCOUNT_FILE` para ela só no terminal do worker.
 
