@@ -18,7 +18,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
 - O limite de funcionários por cliente é definido no painel interno.
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
-- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 22 permissões. Sites são atribuídos por membro.
+- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 23 permissões. Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
 - Chaves de API por pessoa (token `avk_...`, guardado como SHA-256), com limite de taxa no Redis (2/s, rajada de 20).
 
@@ -27,6 +27,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma conta de serviço da Groone para tudo. A conexão é automática quando o cliente aceita o convite MCM; senão, um passo a passo guiado. A conta entra sempre como administradora.
 - Ad Manager REST API v1 atrás de um adaptador `gam_client` **somente leitura** (nenhum método de escrita sem revisão do Pedro).
 - Descoberta MCM de hora em hora (childPublishers); sites e ad units importados a cada 6 horas.
+- Site também pode ser cadastrado à mão pelo domínio (`sites.manage`, decisão de 2026-10-24): fica "aguardando GAM" e a importação o junta ao site do GAM com o mesmo domínio, mantendo as atribuições. Ad units vêm só do GAM.
 - Eventos para a tela em tempo real: canal Redis `avant:events:{company_id}`, JSON `{type: "network.updated", data: {network_id}}`, entregue pelo SSE em `/api/v1/events`.
 
 ## Arquitetura
