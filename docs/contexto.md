@@ -18,7 +18,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
 - O limite de funcionários por cliente é definido no painel interno. Limites (de pessoas e, quando existirem, de networks ou sites) valem só para Empresas de cliente; a Company Groone não tem limite (Pedro, 2026-10-24).
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
-- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 23 permissões. Sites são atribuídos por membro.
+- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 27 permissões. Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
 - Chaves de API por pessoa (token `avk_...`, guardado como SHA-256), com limite de taxa no Redis (2/s, rajada de 20).
 
@@ -28,6 +28,8 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Ad Manager REST API v1 atrás de um adaptador `gam_client` **somente leitura** (nenhum método de escrita sem revisão do Pedro).
 - Descoberta MCM de hora em hora (childPublishers); sites e ad units importados a cada 6 horas.
 - Site também pode ser cadastrado à mão pelo domínio (`sites.manage`, decisão de 2026-10-24): fica "aguardando GAM" e a importação o junta ao site do GAM com o mesmo domínio, mantendo as atribuições. Ad units vêm só do GAM.
+- Contratos (Pedro, 2026-10-24): a tabela `contracts` guarda o revshare (parte da Groone) de cada network. O revshare de um contrato nunca muda: quando muda, o contrato ativo é encerrado e nasce outro; há no máximo um ativo por network. No MCM Manage Account o revshare vem do GAM (`approvedManageAccountRevenueShareMillipercent`) numa tarefa de hora em hora e não se cria contrato à mão; no Manage Inventory a equipe Groone cria o contrato à mão. CRUD no painel interno com as permissões `internal.contracts.view/create/update/delete`.
+- A receita do cliente e a da Groone são calculadas na consulta com o revshare do contrato **ativo** da network, nunca com um valor gravado nas métricas (as métricas podem sincronizar antes do revshare). As tabelas de métricas guardam só a receita bruta.
 - Eventos para a tela em tempo real: canal Redis `avant:events:{company_id}`, JSON `{type: "network.updated", data: {network_id}}`, entregue pelo SSE em `/api/v1/events`.
 
 ## Arquitetura
