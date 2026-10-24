@@ -9,6 +9,9 @@ Infraestrutura do Groone Avant (docker compose, nginx, Postgres, monitoramento, 
 - `/api/v1/metrics` nunca exposto para a internet.
 - Branches: trabalho em `feat/...` ou `fix/...` a partir de `develop`, PR para `develop`. `develop` publica em staging e `main` em produção.
 - Textos de documentação e comentários em português.
+- Clean code obrigatório também nos scripts (skill `avant-clean-code`): nomes claros, nada de
+  variável de uma letra, um comentário de 1 ou 2 linhas acima de cada função, nada de
+  comentário ao lado do código. Sem CI aqui: confira à mão antes do merge.
 
 ## Contexto, issues e skills
 
