@@ -172,6 +172,19 @@ services:
       replicas: 1
     stop_grace_period: 10s
 
+  # Métricas do Celery para o Prometheus (porta 9808, só na rede interna): lê os eventos de
+  # tarefa que o worker manda pelo RabbitMQ (worker_send_task_events no avant-worker).
+  celery-exporter:
+    image: danihodovic/celery-exporter:0.12.0
+    environment:
+      CE_BROKER_URL: amqp://${RABBITMQ_USER:-avant}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
+      CE_PORT: "9808"
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+    networks: [avant]
+
   nginx:
     image: nginx:1.27-alpine
     volumes:
