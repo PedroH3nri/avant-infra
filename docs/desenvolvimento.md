@@ -120,6 +120,14 @@ AVANT_BOOTSTRAP_PASSWORD='uma-senha-forte-local' uv run avant-bootstrap voce@gro
 
 O `avant-bootstrap` cria a Company Groone (a Empresa interna) com você como dono e os papéis `groone_admin` e `groone_support`. Rode uma vez por banco: se rodar de novo, ele avisa que a Company já existe.
 
+Para as telas não ficarem vazias, preencha o banco com dados de demonstração (só funciona com `AVANT_ENV=local`, que já está no `dev.env`):
+
+```bash
+AVANT_DEMO_PASSWORD='uma-senha-forte-local' uv run avant-seed-demo voce@groone.com
+```
+
+Ele cria a Empresa "Portal Notícias (demo)" com você como dono: equipe com papéis variados, convites pendentes, duas networks (uma com erro), sites e ad units. No painel interno aparecem mais dois clientes, um convite de dono e dois MCM sem dono. As pessoas de demonstração têm e-mail `@example.com` e entram com a senha de `AVANT_DEMO_PASSWORD` (sem ela, só aparecem nas listas). Roda uma vez por banco. Para recomeçar do zero, apague o banco e refaça este passo.
+
 ## 6. API
 
 ```bash
@@ -166,6 +174,7 @@ Abra http://localhost:5173. O Vite repassa `/api` para a API, então o painel e 
 2. A equipe Groone precisa de 2FA: o painel pede para configurar logo no primeiro login. Use qualquer app autenticador (Google Authenticator, 1Password etc.) e guarde os códigos de recuperação.
 3. Em `/interno`, cadastre um cliente de teste. O convite de dono não vai por e-mail: o link aparece no log da API, na linha `convite enviado`. Abra o link numa janela anônima para criar a conta e a Empresa do cliente.
 4. Na Empresa do cliente você testa equipe, papéis, convites, networks, sites e chaves de API.
+5. Com os dados de demonstração, troque para "Portal Notícias (demo)" no seletor de Empresa e as telas já vêm preenchidas.
 
 ## 10. Testes
 
