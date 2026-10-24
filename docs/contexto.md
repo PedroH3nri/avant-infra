@@ -16,7 +16,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 
 - Painel interno da Groone → **Cliente** → uma **Empresa** por cliente (o cliente cria) → **membros**, cada um com um papel (predefinido ou personalizado).
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
-- O limite de funcionários por cliente é definido no painel interno.
+- O limite de funcionários por cliente é definido no painel interno. Limites (de pessoas e, quando existirem, de networks ou sites) valem só para Empresas de cliente; a Company Groone não tem limite (Pedro, 2026-10-24).
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
 - Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 23 permissões. Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
