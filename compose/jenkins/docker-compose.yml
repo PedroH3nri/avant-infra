@@ -1,0 +1,56 @@
+# Jenkins do Avant, na VM pequena (junto com staging, Grafana, Prometheus e backups).
+#   docker compose -f compose/jenkins/docker-compose.yml --env-file /srv/jenkins/jenkins.env up -d --build
+#
+# Segredos só na VM, um arquivo por segredo em /srv/jenkins/secrets/ (nomes no jenkins/README.md).
+# O Jenkins usa o Docker da VM pelo socket: as checagens e o build das imagens rodam em
+# containers irmãos. Por isso o JENKINS_HOME tem o mesmo caminho dentro e fora do container.
+name: avant-jenkins
+
+services:
+  jenkins:
+    build: .
+    environment:
+      JENKINS_HOME: /srv/jenkins/home
+      CASC_JENKINS_CONFIG: /etc/avant/casc
+      SECRETS: /run/secrets
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false -Xmx1g
+      JENKINS_URL: ${JENKINS_URL:?defina no jenkins.env}
+      JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-admin}
+      GITHUB_USER: ${GITHUB_USER:?defina no jenkins.env}
+      AVANT_STAGING_HOST: ${AVANT_STAGING_HOST:?defina no jenkins.env}
+      AVANT_PRODUCTION_HOST: ${AVANT_PRODUCTION_HOST:?defina no jenkins.env}
+    group_add:
+      - "${DOCKER_GID:?defina no jenkins.env (getent group docker)}"
+    volumes:
+      - /srv/jenkins/home:/srv/jenkins/home
+      - ./casc:/etc/avant/casc:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - jenkins_admin_password
+      - github_checkout_token
+      - ghcr_push_token
+      - avant_core_access
+      - deploy_ssh_key
+      - known_hosts
+    # Só pela VPN ou por um túnel SSH; para o GitHub, o Jenkins varre os repositórios
+    # de 5 em 5 minutos, sem webhook.
+    ports:
+      - "${JENKINS_BIND:-127.0.0.1:8090}:8080"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+secrets:
+  jenkins_admin_password:
+    file: /srv/jenkins/secrets/jenkins_admin_password
+  github_checkout_token:
+    file: /srv/jenkins/secrets/github_checkout_token
+  ghcr_push_token:
+    file: /srv/jenkins/secrets/ghcr_push_token
+  avant_core_access:
+    file: /srv/jenkins/secrets/avant_core_access
+  deploy_ssh_key:
+    file: /srv/jenkins/secrets/deploy_ssh_key
+  known_hosts:
+    file: /srv/jenkins/secrets/known_hosts
