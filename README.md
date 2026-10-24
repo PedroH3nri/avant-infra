@@ -8,10 +8,12 @@ Infraestrutura do Groone Avant: como os serviços rodam juntos em cada ambiente.
 | `compose/vm` | compose único das VMs, com blue-green de `api` e `web` |
 | `compose/staging`, `compose/production` | o que muda por ambiente (`vm.env`, sem segredos) |
 | `scripts/deploy.sh` | deploy, troca de cor e rollback nas VMs |
+| `scripts/remote-deploy.sh` | comando forçado da chave SSH do Jenkins: confere o pedido e chama o `deploy.sh` |
 | `postgres/init` | papéis do banco: `avant_owner` (migrations) e `avant_app` (aplicação, sujeita ao RLS) |
 | `nginx` | proxy local (`avant.conf`), proxy do stack nas VMs (`vm.conf`) e modelo do nginx do host com TLS (`host/`) |
 | `monitoring` | Prometheus (e depois Loki e painéis do Grafana) |
-| `jenkins` | biblioteca compartilhada dos Jenkinsfiles (em construção) |
+| `jenkins` | biblioteca compartilhada dos Jenkinsfiles e como preparar as VMs para o deploy ([`jenkins/README.md`](jenkins/README.md)) |
+| `compose/jenkins` | o Jenkins da VM pequena, configurado pelo repositório (Configuration as Code) |
 
 Repositórios do Avant: `avant-core`, `avant-api`, `avant-worker`, `avant-web`, `avant-infra`.
 
@@ -47,7 +49,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
 
 ### Arquivos na VM
 
-Em `/srv/avant/<ambiente>/` (dono `root`, permissão `600` nos arquivos):
+Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permissão `600` nos arquivos):
 
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
@@ -58,6 +60,8 @@ Em `/srv/avant/<ambiente>/` (dono `root`, permissão `600` nos arquivos):
 | `upstreams/*.conf` | `deploy.sh` | para qual cor o nginx manda o tráfego |
 
 ### Deploy
+
+O Jenkins faz o deploy sozinho a cada merge em `develop` (staging) e em `main` (produção), por SSH, com uma chave que só roda `scripts/remote-deploy.sh` ([`jenkins/README.md`](jenkins/README.md)). À mão, na VM:
 
 ```sh
 scripts/deploy.sh staging up                # Postgres, RabbitMQ, Redis, nginx e o que já estiver ativo
@@ -72,9 +76,9 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 
 ### Primeiro boot
 
-1. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
-2. Fazer login no GHCR com um token só de leitura de pacotes.
-3. `scripts/deploy.sh <ambiente> up`, depois `api`, `web` e `worker` com as tags.
+1. Preparar o usuário `avant-deploy`, a cópia do avant-infra em `/opt/avant-infra/<ambiente>` e a chave do Jenkins ([`jenkins/README.md`](jenkins/README.md#preparar-uma-vm-para-receber-deploy)).
+2. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
+3. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
 4. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
 5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
 

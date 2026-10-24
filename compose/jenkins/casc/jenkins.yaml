@@ -1,0 +1,117 @@
+# Configuração do Jenkins do Avant (plugin Configuration as Code). Lida a cada boot.
+# Os ${...} vêm do ambiente (jenkins.env) e dos arquivos em /run/secrets (um por segredo).
+jenkins:
+  systemMessage: "Jenkins do Groone Avant. Configurado por avant-infra/compose/jenkins: mudanças aqui são perdidas no próximo boot."
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_USER}"
+          password: "${jenkins_admin_password}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: AVANT_STAGING_HOST
+            value: "${AVANT_STAGING_HOST}"
+          - key: AVANT_PRODUCTION_HOST
+            value: "${AVANT_PRODUCTION_HOST}"
+
+unclassified:
+  location:
+    url: "${JENKINS_URL}"
+  globalLibraries:
+    libraries:
+      - name: avant
+        defaultVersion: develop
+        implicit: false
+        allowVersionOverride: true
+        retriever:
+          modernSCM:
+            libraryPath: jenkins/
+            scm:
+              git:
+                remote: https://github.com/PedroH3nri/avant-infra.git
+                credentialsId: github-checkout
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: github-checkout
+              description: "Leitura dos repositórios do Avant (token fine-grained, só Contents: read)"
+              username: "${GITHUB_USER}"
+              password: "${github_checkout_token}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: ghcr-push
+              description: "Publicação das imagens no GHCR (write:packages)"
+              username: "${GITHUB_USER}"
+              password: "${ghcr_push_token}"
+          - string:
+              scope: GLOBAL
+              id: avant-core-access
+              description: "Leitura do avant-core privado no build das imagens e nas checagens"
+              secret: "${avant_core_access}"
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: avant-deploy-ssh
+              description: "Deploy nas VMs (só roda scripts/remote-deploy.sh)"
+              username: avant-deploy
+              privateKeySource:
+                directEntry:
+                  privateKey: "${deploy_ssh_key}"
+          - file:
+              scope: GLOBAL
+              id: avant-known-hosts
+              description: "Chaves das VMs para o SSH do deploy"
+              fileName: known_hosts
+              secretBytes: "${readFileBase64:/run/secrets/known_hosts}"
+
+# Um job multibranch por serviço. Só develop (staging) e main (produção): os PRs já passam
+# pelas checagens do GitHub Actions.
+jobs:
+  - script: |
+      ['avant-api', 'avant-worker', 'avant-web'].each { repositoryName ->
+        multibranchPipelineJob(repositoryName) {
+          displayName(repositoryName)
+          branchSources {
+            branchSource {
+              source {
+                github {
+                  id(repositoryName)
+                  repoOwner('PedroH3nri')
+                  repository(repositoryName)
+                  repositoryUrl('https://github.com/PedroH3nri/' + repositoryName)
+                  configuredByUrl(false)
+                  credentialsId('github-checkout')
+                  traits {
+                    gitHubBranchDiscovery {
+                      strategyId(3)
+                    }
+                    headRegexFilter {
+                      regex('develop|main')
+                    }
+                  }
+                }
+              }
+            }
+          }
+          orphanedItemStrategy {
+            discardOldItems {
+              numToKeep(5)
+            }
+          }
+          triggers {
+            periodicFolderTrigger {
+              interval('5m')
+            }
+          }
+        }
+      }
