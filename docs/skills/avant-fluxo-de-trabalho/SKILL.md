@@ -21,7 +21,7 @@ git fetch origin develop:refs/remotes/origin/develop
 git checkout -B feat/<assunto> origin/develop    # ou fix/<assunto>
 ```
 
-Siga as skills do tipo de mudança deste repositório (veja `docs/skills/README.md`) e as do superpowers: `test-driven-development` para código, `systematic-debugging` para bug, `verification-before-completion` antes de dizer que terminou.
+Todo código segue a `avant-clean-code` (obrigatória). Siga também as skills do tipo de mudança deste repositório (veja `docs/skills/README.md`) e as do superpowers: `test-driven-development` para código, `systematic-debugging` para bug, `verification-before-completion` antes de dizer que terminou.
 
 ## 3. Checar
 
