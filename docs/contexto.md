@@ -64,6 +64,7 @@ Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os doi
 | M3 Piloto | 31/12 | Um cliente real da rede Groone (ainda não escolhido) |
 | M4 Métricas do GAM | a definir | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho |
 | M5 Personalização e relatórios | a definir | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
+| M6 Grupos e comissão | a definir | Grupos de funcionários na Empresa (um por pessoa), comissão e meta herdadas do grupo, cálculo da comissão, projetos de comissão do mês, imagem da Empresa. Decisão: `docs/decisoes/08-grupos-e-imagem-da-empresa.md` |
 | Pós-MVP | sem data | O que sobrar depois do piloto |
 
 Issues abertas em 23/10 (a lista viva está no GitHub):
@@ -127,6 +128,7 @@ Cópias em Markdown em `docs/decisoes/` de cada repositório. São o registro da
 - Endpoints da API: https://claude.ai/artifact/YWMmSvEW9xbVuG5gnbvd5Y
 - Repositórios e plano do MVP: https://claude.ai/artifact/9mfxsywc68VEJqeYKDWFPT
 - Protótipo navegável: https://claude.ai/artifact/MJJHKXxGN2GA8tpakMnemf
+- Grupos na Empresa e imagem da Empresa (26/10): https://claude.ai/artifact/AoxAu9E4XNQhCCmaxVjLRe
 
 ## Skills e ferramentas
 
