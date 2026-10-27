@@ -38,7 +38,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Microserviços que dividem um banco. API first.
 - **Row Level Security ligado.** A aplicação conecta como `avant_app` (não é dono das tabelas, sem BYPASSRLS); as migrations usam `avant_owner`. A Unit of Work faz `SET app.company_id`. Não mudar isso.
 - O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por módulo (identity, company, access, gam, audit), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
-- No core, model é a dataclass do domínio e repository é o port em `ports.py`, com a implementação SQL em `db/repositories/<domínio>.py` e a tabela em `db/tables/<domínio>.py`.
+- No core, cada domínio tem `model.py` (dataclasses), `repository.py` (interfaces dos repositórios) e `service.py` (casos de uso; assuntos à parte em `<assunto>_service.py`). A implementação SQL fica em `db/repositories/<domínio>.py` e a tabela em `db/tables/<domínio>.py`. Controller e DTO só existem no avant-api.
 - O `avant-api` é organizado por domínio: `modules/<domínio>/{controller,dto,service,dependencies}.py`, infraestrutura em `app/` e DTOs comuns em `shared/`. O service recebe interfaces pelo construtor (inversão de dependência); model e repository ficam no core.
 - O `avant-web` também é organizado por domínio: `src/modules/<domínio>/` com as telas, os componentes, o `service.ts` (chamadas à API) e os `types.ts` do domínio; o que é comum fica em `src/lib/`, `src/components/` e `src/layouts/`. As telas não chamam a API direto: passam pelo `service.ts` do domínio.
 
