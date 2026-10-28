@@ -18,7 +18,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
 - O limite de funcionários por cliente é definido no painel interno. Limites (de pessoas e, quando existirem, de networks ou sites) valem só para Empresas de cliente; a Company Groone não tem limite (Pedro, 2026-10-24).
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
-- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 27 permissões. Sites são atribuídos por membro.
+- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 34 permissões (23 de cliente e 11 internas). Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
 - Chaves de API por pessoa (token `avk_...`, guardado como SHA-256), com limite de taxa no Redis (2/s, rajada de 20).
 
@@ -38,8 +38,9 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Microserviços que dividem um banco. API first.
 - **Row Level Security ligado.** A aplicação conecta como `avant_app` (não é dono das tabelas, sem BYPASSRLS); as migrations usam `avant_owner`. A Unit of Work faz `SET app.company_id`. Não mudar isso.
 - O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por módulo (identity, company, access, gam, audit), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
-- No core, cada domínio tem `model.py` (dataclasses), `repository.py` (interfaces dos repositórios) e `service.py` (casos de uso; assuntos à parte em `<assunto>_service.py`). A implementação SQL fica em `db/repositories/<domínio>.py` e a tabela em `db/tables/<domínio>.py`. Controller e DTO só existem no avant-api.
-- O `avant-api` é organizado por domínio: `modules/<domínio>/{controller,dto,service,dependencies}.py`, infraestrutura em `app/` e DTOs comuns em `shared/`. O service recebe interfaces pelo construtor (inversão de dependência); model e repository ficam no core.
+- No core, todo domínio (ou subdomínio, como `gam/networks/`) tem `models/`, `enums/`, `errors/`, `tables/`, `interfaces/`, `repositories/` e `services/`, uma coisa por arquivo, com `__init__.py` que reexporta (core#74, 27/10). SQLAlchemy só em `tables/`, `repositories/` e `db/`; `db/` guarda o que é de todos (metadata, mapeamento, Unit of Work com o RLS). Controller e DTO só existem no avant-api.
+- O `avant-api` tem um módulo por recurso: `modules/<recurso>/` com um `controller.py`, um `dto.py`, um `service.py` e um `dependencies.py` (recurso novo é módulo novo; apoio só do módulo num arquivo com o nome do assunto), infraestrutura em `app/` e DTOs comuns em `shared/`. O service recebe interfaces pelo construtor (inversão de dependência); model e repository ficam no core.
+- O `avant-worker` também segue os domínios do core: tarefas em `tasks/<domínio>/<assunto>_tasks.py` (gam, metrics, money, maintenance) e adaptadores (GAM, data, cotações, eventos) em `adapters/`.
 - O `avant-web` também é organizado por domínio: `src/modules/<domínio>/` com as telas, os componentes, o `service.ts` (chamadas à API) e os `types.ts` do domínio; o que é comum fica em `src/lib/`, `src/components/` e `src/layouts/`. As telas não chamam a API direto: passam pelo `service.ts` do domínio.
 
 ## Repositórios
