@@ -18,7 +18,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
 - O limite de funcionários por cliente é definido no painel interno. Limites (de pessoas e, quando existirem, de networks ou sites) valem só para Empresas de cliente; a Company Groone não tem limite (Pedro, 2026-10-24).
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
-- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 36 permissões (25 de cliente e 11 internas). Sites são atribuídos por membro.
+- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 43 permissões (26 de cliente e 17 internas). Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
 - Chaves de API por pessoa (token `avk_...`, guardado como SHA-256), com limite de taxa no Redis (2/s, rajada de 20).
 
@@ -68,7 +68,8 @@ Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os doi
 | M3 Piloto | 31/12 | Um cliente real da rede Groone (ainda não escolhido) |
 | M4 Métricas do GAM | a definir | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho |
 | M5 Personalização e relatórios | a definir | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
-| M6 Grupos e comissão | a definir | Grupos de funcionários na Empresa (um por pessoa), comissão e meta herdadas do grupo, cálculo da comissão, projetos de comissão do mês, imagem da Empresa. Decisão: `docs/decisoes/08-grupos-e-imagem-da-empresa.md` |
+| M6 Grupos e comissão | em andamento | Grupos de funcionários na Empresa (um por pessoa), imagem da Empresa, metas da equipe Groone e a comissão da equipe Groone (regras no papel por evento, prazos, cálculo diário, fechamento no dia 15; core v0.43.0). Decisões: `docs/decisoes/08-grupos-e-imagem-da-empresa.md`, `docs/decisoes/09-comissao-da-equipe-groone.md` |
+| M7 Invoices | em andamento | Invoices da equipe Groone como no Genius: a pessoa cria a invoice do mês com a comissão validada (linhas travadas com os textos do Genius, em inglês), soma serviços do catálogo com valor livre, emite com os dados de recebimento (sempre pessoa física; De GROONE, LLC para o funcionário); o financeiro devolve para rascunho com motivo por e-mail ou confirma o pagamento. Emitida ou paga não muda (triggers no banco). Permissões `internal.invoices.view/manage/services`. Core v0.50.0, spec em `docs/superpowers/specs/2026-10-30-invoices-da-equipe-design.md` (avant-core) |
 | Pós-MVP | sem data | O que sobrar depois do piloto |
 
 Issues abertas em 23/10 (a lista viva está no GitHub):
