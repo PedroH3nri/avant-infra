@@ -18,7 +18,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Uma pessoa pode estar em várias Empresas; há uma tabela única de usuários.
 - O limite de funcionários por cliente é definido no painel interno. Limites (de pessoas e, quando existirem, de networks ou sites) valem só para Empresas de cliente; a Company Groone não tem limite (Pedro, 2026-10-24).
 - Entrada só por convite por e-mail (Resend, validade de 1 dia); o login com Google é ligado depois, em Configurações. Sessão por cookie, 2FA por TOTP com códigos de recuperação.
-- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 46 permissões (28 de cliente e 18 internas). Sites são atribuídos por membro.
+- Permissões: módulo próprio em Python inspirado no `artesaos/defender` do Laravel, com escopo por Empresa. Catálogo de 49 permissões (28 de cliente e 21 internas). Sites são atribuídos por membro.
 - A Empresa ativa vem da sessão; nenhuma rota tem `company_id` no caminho.
 - Chaves de API por pessoa (token `avk_...`, guardado como SHA-256), com limite de taxa no Redis (2/s, rajada de 20).
 
@@ -70,6 +70,7 @@ Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os doi
 | M5 Personalização e relatórios | a definir | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
 | M6 Grupos e comissão | em andamento | Grupos de funcionários na Empresa (um por pessoa), imagem da Empresa, metas da equipe Groone e a comissão da equipe Groone (regras no papel por evento, prazos, cálculo diário, fechamento no dia 15; core v0.43.0). Decisões: `docs/decisoes/08-grupos-e-imagem-da-empresa.md`, `docs/decisoes/09-comissao-da-equipe-groone.md` |
 | M7 Invoices | em andamento | Invoices da equipe Groone como no Genius: a pessoa cria a invoice do mês com a comissão validada (linhas travadas com os textos do Genius, em inglês), soma serviços do catálogo com valor livre, emite com os dados de recebimento (sempre pessoa física; De GROONE, LLC para o funcionário); o financeiro devolve para rascunho com motivo por e-mail ou confirma o pagamento. Emitida ou paga não muda (triggers no banco). Permissões `internal.invoices.view/manage/services`. Core v0.50.0, spec em `docs/superpowers/specs/2026-10-30-invoices-da-equipe-design.md` (avant-core) |
+| M8 Painel interno: itens do Genius | em andamento | O que o painel interno do Genius tem e o Avant não (Pedro, 03/11): documentos do cliente Manage Inventory (identidade e comprovante de residência, enviados pelo cliente e aprovados pela equipe) e observações da equipe (core#188, feito), tarefas de suporte (core#189), checklist de domínio automatizado (core#190), ferramentas da API do GAM com escrita, em Ferramentas (core#191), e comparar períodos no relatório personalizado mais uma consulta por relatório (core#192) |
 | Pós-MVP | sem data | O que sobrar depois do piloto |
 
 Issues abertas em 23/10 (a lista viva está no GitHub):
