@@ -89,8 +89,8 @@ Fora do escopo por enquanto: port das regras de preço, cobrança, G-Tag, tabela
 
 - Rodar tudo na máquina em modo de desenvolvimento: `avant-infra/docs/desenvolvimento.md` ([link](https://github.com/PedroH3nri/avant-infra/blob/develop/docs/desenvolvimento.md)).
 - Branches `feat/...` ou `fix/...` a partir de `pre-develop`; PR para `pre-develop`. A `pre-develop` sobe para a `develop` num PR próprio. `develop` publica em staging, `main` em produção.
-- **Revisão antes de qualquer merge** (Pedro, 30/10): todo PR passa por revisão de código de um revisor de contexto novo; o que for crítico ou importante é corrigido, com teste, antes do merge. E só com a CI verde (o `gh api` mescla mesmo com a CI vermelha: espere `gh pr checks --watch`).
-- O Claude pode mesclar na `pre-develop` depois da revisão e da CI. Levar a `pre-develop` para a `develop` pede o ok do Pedro. `main` e produção ficam com o Pedro.
+- **Revisão antes da `develop`** (Pedro, 30/10 e 03/11): a promoção `pre-develop` → `develop` passa por revisão de código de um revisor de contexto novo; o que for crítico ou importante é corrigido, com teste, antes do merge. E só com a CI verde (o `gh api` mescla mesmo com a CI vermelha: espere `gh pr checks --watch`).
+- Feature pronta entra na `pre-develop` sem revisão, com as checagens e a CI verdes. A promoção para a `develop` passa pela revisão e pela CI; sem vulnerabilidade nem erro, o Claude mescla (autorizado pelo Pedro em 03/11). `main` e produção ficam com o Pedro.
 - Tags do `avant-core` saem pela GitHub Action `release.yml` quando a versão do `pyproject.toml` muda (push de tag direto pode ser bloqueado).
 - Antes do PR, Python: `uv run ruff format . && uv run ruff check . && uv run mypy && uv run pytest`. Web: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 - Mudança de model que a API usa vira dois PRs: um no core (nova tag) e outro subindo a versão na API e no worker.

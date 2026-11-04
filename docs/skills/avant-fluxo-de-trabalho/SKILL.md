@@ -1,6 +1,6 @@
 ---
 name: avant-fluxo-de-trabalho
-description: Use no começo de qualquer tarefa no Groone Avant. Mostra como achar a issue, criar a branch, rodar as checagens, abrir o PR para develop, fazer o merge e fechar a issue.
+description: Use no começo de qualquer tarefa no Groone Avant. Mostra como achar a issue, criar a branch, rodar as checagens, entregar na pre-develop, promover para a develop com revisão e fechar a issue.
 ---
 
 # Fluxo de trabalho do Groone Avant
@@ -17,8 +17,8 @@ Toda demanda é uma issue com milestone no repositório certo. Nada de trabalho 
 ## 2. Fazer
 
 ```bash
-git fetch origin develop:refs/remotes/origin/develop
-git checkout -B feat/<assunto> origin/develop    # ou fix/<assunto>
+git fetch origin pre-develop:refs/remotes/origin/pre-develop
+git checkout -B feat/<assunto> origin/pre-develop    # ou fix/<assunto>
 ```
 
 Todo código segue a `avant-clean-code` (obrigatória). Siga também as skills do tipo de mudança deste repositório (veja `docs/skills/README.md`) e as do superpowers: `test-driven-development` para código, `systematic-debugging` para bug, `verification-before-completion` antes de dizer que terminou.
@@ -30,16 +30,18 @@ O avant-infra não tem CI. Rode a validação da skill `avant-deploy-vm` (`docke
 ## 4. Entregar
 
 - Commit em português, terminando com `Closes #N`.
-- PR para `develop` pela API REST (o `gh pr create` pode falhar por causa do GraphQL):
+- PR para `pre-develop` pela API REST (o `gh pr create` pode falhar por causa do GraphQL):
 
 ```bash
-gh api repos/PedroH3nri/<repo>/pulls -f base=develop -f head=<branch> \
+gh api repos/PedroH3nri/<repo>/pulls -f base=pre-develop -f head=<branch> \
   -f title="<título>" -F body=@corpo.md --jq '.number, .head.sha'
 ```
 
 - Corpo do PR: `Closes #N`, o que muda e como foi testado.
-- Merge (squash) em `develop` quando o CI passa e não há comentário pendente. `main` e produção são sempre do Pedro.
-- O branch padrão é `main`, então o `Closes #N` não fecha a issue no merge em `develop`: feche à mão.
+- Merge na `pre-develop` quando as checagens e o CI passam: a feature pronta entra ali sem revisão.
+- Promoção `pre-develop` → `develop` num PR próprio: revisão de código por um revisor de contexto novo (`requesting-code-review`) sobre o diff inteiro, que pode ter trabalho de outra sessão, e CI verde. Sem vulnerabilidade nem erro (nada crítico ou importante), o merge na `develop` está autorizado (Pedro, 03/11); se houver, corrija com teste na `pre-develop` e revise de novo. `main` e produção são sempre do Pedro.
+- O `gh api` mescla mesmo com a CI vermelha: espere `gh pr checks <N> --watch` passar antes de qualquer merge.
+- O branch padrão é `main`, então o `Closes #N` não fecha a issue: feche à mão depois que a mudança chegar à `develop`.
 
 ```bash
 gh api -X PATCH repos/PedroH3nri/<repo>/issues/<N> -f state=closed -f state_reason=completed
@@ -51,4 +53,4 @@ gh api -X PATCH repos/PedroH3nri/<repo>/issues/<N> -f state=closed -f state_reas
 
 - Segredo no repositório, em issue ou em PR. Os valores ficam só nas VMs.
 - Pular, desligar ou marcar como flaky um teste para o CI passar.
-- Push direto em `develop` ou `main`, ou merge em `main`.
+- Push direto em `pre-develop`, `develop` ou `main`, ou merge em `main`.
