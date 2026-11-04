@@ -93,8 +93,10 @@ services:
     logging: *logging
     networks: [avant]
 
+  # Sem o plugin de gestão: com o painel dava para republicar tarefas de dentro da rede. O
+  # celery-exporter lê os eventos pelo AMQP, não pelo painel.
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-avant}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
