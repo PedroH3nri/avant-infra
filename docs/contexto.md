@@ -49,10 +49,10 @@ Todos privados no perfil pessoal `PedroH3nri` no GitHub (fora da organização i
 
 | Repositório | O que é | Estado em 03/11 |
 |---|---|---|
-| `avant-core` | Pacote comum: domínio, casos de uso, models, migrations (Alembic), RLS, e-mail. Instalado pela API e pelo worker por tag git. | v0.64.0. Domínios: identity, company, access, audit, groups, gam (networks, inventário, contratos, sync, tools), metrics, money, reports, dashboards, alerts, schedules, saved_views, results, revenue_status, costs, goals, commissions, invoices, documents, client_notes, support_tasks, site_checklists, internal |
-| `avant-api` | FastAPI em `/api/v1`, cerca de 270 rotas, rotas internas em `/internal`. | develop com core v0.63.0; pre-develop com as ferramentas do GAM (PR #153) e o core v0.64.0 no PR #154 |
-| `avant-worker` | Celery worker e beat, tarefas `avant.<fila>.<nome>`, filas `default`, `mail` e `gam`. | 19 tarefas no beat (gam, metrics, money, alerts, schedules, reports, commissions, checklists, maintenance); core v0.64.0 no PR #68 |
-| `avant-web` | Painel Vue 3: login, 2FA, convite, equipe, papéis e grupos, networks, sites, relatórios, dashboards (página inicial), alertas, envios agendados, custos e resultado; painel interno `/interno` com clientes, contratos, inventário, resultados, metas, comissões, invoices, tarefas, checklists e ferramentas do GAM. | develop até o PR #182 |
+| `avant-core` | Pacote comum: domínio, casos de uso, models, migrations (Alembic), RLS, e-mail. Instalado pela API e pelo worker por tag git. | v0.64.0. Domínios: identity, company, access, audit, groups, gam (client, mcm, networks, inventário, contratos, sync, tools), metrics, money, reports, dashboards, alerts, schedules, saved_views, results, revenue_status, costs, goals, commissions, invoices, documents, client_notes, support_tasks, site_checklists, internal |
+| `avant-api` | FastAPI em `/api/v1`, cerca de 270 rotas, rotas internas em `/internal`. | develop com core v0.63.0; pre-develop com as rotas das ferramentas do GAM (PR #152; promoção no #153); core v0.64.0 no PR #154 |
+| `avant-worker` | Celery worker e beat, tarefas `avant.<fila>.<nome>`, filas `default`, `mail` e `gam`. | 18 tarefas no beat (gam, metrics, money, alerts, schedules, reports, commissions, checklists, maintenance); develop já com as escritas no GAM (PR #67); core v0.64.0 no PR #68 |
+| `avant-web` | Painel Vue 3: login, 2FA, convite, Minha conta, equipe, papéis e grupos, documentos, networks, sites, relatórios, dashboards (página inicial), alertas, envios agendados, custos, resultado e faturamento; painel interno `/interno` com clientes, contratos, inventário, resultados, metas, comissões, invoices, tarefas, checklists e ferramentas do GAM. | develop até o PR #182 |
 | `avant-infra` | Compose local, Postgres, nginx, monitoramento, deploy. | Compose local e deploy nas VMs (`compose/vm`, `scripts/deploy.sh`); staging ainda não está no ar (M1: #4, #5, #6) |
 
 Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os dois antes de mudar algo.
@@ -145,6 +145,6 @@ Cópias em Markdown em `docs/decisoes/` de cada repositório. São o registro da
 
 ## Dicas de ambiente para o agente
 
-- `gh pr create` pode falhar (GraphQL bloqueado pelo proxy): abrir PR com `gh api repos/PedroH3nri/<repo>/pulls -f base=develop -f head=<branch> ...`.
-- Clones rasos: `git fetch origin develop:refs/remotes/origin/develop`.
+- `gh pr create` pode falhar (GraphQL bloqueado pelo proxy): abrir PR com `gh api repos/PedroH3nri/<repo>/pulls -f base=pre-develop -f head=<branch> ...`.
+- Clones rasos: `git fetch origin develop:refs/remotes/origin/develop pre-develop:refs/remotes/origin/pre-develop`.
 - Não há Postgres local na sessão; os testes de integração da API rodam no CI.
