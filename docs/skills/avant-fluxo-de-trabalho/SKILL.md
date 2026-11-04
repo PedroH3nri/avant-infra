@@ -38,9 +38,9 @@ gh api repos/PedroH3nri/<repo>/pulls -f base=pre-develop -f head=<branch> \
 ```
 
 - Corpo do PR: `Closes #N`, o que muda e como foi testado.
-- Merge na `pre-develop` quando as checagens e o CI passam: a feature pronta entra ali sem revisão.
-- Promoção `pre-develop` → `develop` num PR próprio: revisão de código por um revisor de contexto novo (`requesting-code-review`) sobre o diff inteiro, que pode ter trabalho de outra sessão, e CI verde. Sem vulnerabilidade nem erro (nada crítico ou importante), o merge na `develop` está autorizado (Pedro, 03/11); se houver, corrija com teste na `pre-develop` e revise de novo. `main` e produção são sempre do Pedro.
-- O `gh api` mescla mesmo com a CI vermelha: espere `gh pr checks <N> --watch` passar antes de qualquer merge.
+- Merge na `pre-develop` quando a validação da seção 3 passa (o avant-infra não tem CI): a feature pronta entra ali sem revisão.
+- Promoção `pre-develop` → `develop` num PR próprio: revisão de código por um revisor de contexto novo (`requesting-code-review`) sobre o diff inteiro, que pode ter trabalho de outra sessão, e a validação da seção 3 de novo no que vai subir. Sem vulnerabilidade nem erro (nada crítico ou importante), o merge na `develop` está autorizado (Pedro, 03/11); se houver, corrija com teste na `pre-develop` e revise de novo. `main` e produção são sempre do Pedro.
+- Aqui o `gh pr checks` responde "no checks reported": isso não é CI verde nem falha; vale a validação da seção 3, feita à mão.
 - O branch padrão é `main`, então o `Closes #N` não fecha a issue: feche à mão depois que a mudança chegar à `develop`.
 
 ```bash
