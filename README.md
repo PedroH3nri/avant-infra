@@ -53,7 +53,7 @@ Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permiss�
 
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
-| `compose.env` | Pedro | senhas do Postgres e do RabbitMQ (nomes no `.env.example`) |
+| `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
 | `app.env` | Pedro | segredos da aplicação: sessão, 2FA, Resend, Google, GAM |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
