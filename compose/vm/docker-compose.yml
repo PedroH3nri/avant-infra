@@ -139,6 +139,8 @@ services:
     logging: *logging
     networks: [avant]
     command: ["alembic", "-c", "/etc/avant/alembic.ini", "upgrade", "head"]
+    mem_limit: 512m
+    cpus: 1
     volumes:
       - ./alembic.ini:/etc/avant/alembic.ini:ro
     depends_on:
