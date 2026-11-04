@@ -1,6 +1,6 @@
 # Groone Avant: contexto do projeto
 
-Contexto principal do projeto, igual nos cinco repositórios (atualizado em 23/10/2026). Quem chega para trabalhar aqui, pessoa ou agente, precisa só deste arquivo, do `CLAUDE.md`, das issues e da pasta `docs/`. Se algo aqui divergir do código, vale o código; corrija este arquivo nos cinco repositórios.
+Contexto principal do projeto, igual nos cinco repositórios (atualizado em 03/11/2026). Quem chega para trabalhar aqui, pessoa ou agente, precisa só deste arquivo, do `CLAUDE.md`, das issues e da pasta `docs/`. Se algo aqui divergir do código, vale o código; corrija este arquivo nos cinco repositórios.
 
 ## O produto
 
@@ -37,7 +37,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 - Python 3.12 com uv, FastAPI, Celery (broker RabbitMQ, Redis para resultados, locks, limites e eventos), PostgreSQL para tudo. Front em Vue 3 (SPA), Tailwind e componentes no estilo shadcn-vue (reka-ui).
 - Microserviços que dividem um banco. API first.
 - **Row Level Security ligado.** A aplicação conecta como `avant_app` (não é dono das tabelas, sem BYPASSRLS); as migrations usam `avant_owner`. A Unit of Work faz `SET app.company_id`. Não mudar isso.
-- O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por módulo (identity, company, access, gam, audit), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
+- O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por domínio (a lista está em Repositórios), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
 - No core, todo domínio (ou subdomínio, como `gam/networks/`) tem `models/`, `enums/`, `errors/`, `tables/`, `interfaces/`, `repositories/` e `services/`, uma coisa por arquivo, com `__init__.py` que reexporta (core#74, 27/10). SQLAlchemy só em `tables/`, `repositories/` e `db/`; `db/` guarda o que é de todos (metadata, mapeamento, Unit of Work com o RLS). Controller e DTO só existem no avant-api.
 - O `avant-api` tem um módulo por recurso: `modules/<recurso>/` com um `controller.py`, um `dto.py`, um `service.py` e um `dependencies.py` (recurso novo é módulo novo; apoio só do módulo num arquivo com o nome do assunto), infraestrutura em `app/` e DTOs comuns em `shared/`. O service recebe interfaces pelo construtor (inversão de dependência); model e repository ficam no core.
 - O `avant-worker` também segue os domínios do core: tarefas em `tasks/<domínio>/<assunto>_tasks.py` (gam, metrics, money, maintenance) e adaptadores (GAM, data, cotações, eventos) em `adapters/`.
@@ -47,13 +47,13 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 
 Todos privados no perfil pessoal `PedroH3nri` no GitHub (fora da organização iGroone).
 
-| Repositório | O que é | Estado em 23/10 |
+| Repositório | O que é | Estado em 03/11 |
 |---|---|---|
-| `avant-core` | Pacote comum: domínio, casos de uso, models, migrations (Alembic), RLS, e-mail. Instalado pela API e pelo worker por tag git. | v0.9.0 (identidade, convites, sessões, 2FA, equipe, auditoria, painel interno, `avant-bootstrap`, Google, GAM, sites, chaves de API) |
-| `avant-api` | FastAPI em `/api/v1`, cerca de 80 rotas, rotas internas em `/internal`. | PRs #1 a #13 no `develop`, usa core v0.9.0 |
-| `avant-worker` | Celery worker e beat, tarefas `avant.<fila>.<nome>`, filas `default`, `mail` e `gam`. | PRs #1 a #10 no `develop`, usa core v0.9.0 |
-| `avant-web` | Painel Vue 3: login, 2FA, convite, equipe e papéis, networks com assistente de conexão, sites e ad units, Minha conta, painel interno `/interno`. | PRs #1 a #7 no `develop` |
-| `avant-infra` | Compose local, Postgres, nginx, monitoramento, deploy. | Compose local e deploy nas VMs (`compose/vm`, `scripts/deploy.sh`) no `develop`; ainda não rodou numa VM |
+| `avant-core` | Pacote comum: domínio, casos de uso, models, migrations (Alembic), RLS, e-mail. Instalado pela API e pelo worker por tag git. | v0.64.0. Domínios: identity, company, access, audit, groups, gam (networks, inventário, contratos, sync, tools), metrics, money, reports, dashboards, alerts, schedules, saved_views, results, revenue_status, costs, goals, commissions, invoices, documents, client_notes, support_tasks, site_checklists, internal |
+| `avant-api` | FastAPI em `/api/v1`, cerca de 270 rotas, rotas internas em `/internal`. | develop com core v0.63.0; pre-develop com as ferramentas do GAM (PR #153) e o core v0.64.0 no PR #154 |
+| `avant-worker` | Celery worker e beat, tarefas `avant.<fila>.<nome>`, filas `default`, `mail` e `gam`. | 19 tarefas no beat (gam, metrics, money, alerts, schedules, reports, commissions, checklists, maintenance); core v0.64.0 no PR #68 |
+| `avant-web` | Painel Vue 3: login, 2FA, convite, equipe, papéis e grupos, networks, sites, relatórios, dashboards (página inicial), alertas, envios agendados, custos e resultado; painel interno `/interno` com clientes, contratos, inventário, resultados, metas, comissões, invoices, tarefas, checklists e ferramentas do GAM. | develop até o PR #182 |
+| `avant-infra` | Compose local, Postgres, nginx, monitoramento, deploy. | Compose local e deploy nas VMs (`compose/vm`, `scripts/deploy.sh`); staging ainda não está no ar (M1: #4, #5, #6) |
 
 Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os dois antes de mudar algo.
 
@@ -66,20 +66,20 @@ Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os doi
 | M1 Staging no ar | 06/11 | Deploy nas VMs, pipeline Jenkins e imagens no GHCR, monitoramento, preparação das VMs |
 | M2 Segurança e produção | 21/12 | Revisão de segurança, teste de carga, backups testados, E2E, primeiro deploy de produção |
 | M3 Piloto | 31/12 | Um cliente real da rede Groone (ainda não escolhido) |
-| M4 Métricas do GAM | a definir | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho |
-| M5 Personalização e relatórios | a definir | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
-| M6 Grupos e comissão | em andamento | Grupos de funcionários na Empresa (um por pessoa), imagem da Empresa, metas da equipe Groone e a comissão da equipe Groone (regras no papel por evento, prazos, cálculo diário, fechamento no dia 15; core v0.43.0). Decisões: `docs/decisoes/08-grupos-e-imagem-da-empresa.md`, `docs/decisoes/09-comissao-da-equipe-groone.md` |
-| M7 Invoices | em andamento | Invoices da equipe Groone como no Genius: a pessoa cria a invoice do mês com a comissão validada (linhas travadas com os textos do Genius, em inglês), soma serviços do catálogo com valor livre, emite com os dados de recebimento (sempre pessoa física; De GROONE, LLC para o funcionário); o financeiro devolve para rascunho com motivo por e-mail ou confirma o pagamento. Emitida ou paga não muda (triggers no banco). Permissões `internal.invoices.view/manage/services`. Core v0.50.0, spec em `docs/superpowers/specs/2026-10-30-invoices-da-equipe-design.md` (avant-core) |
-| M8 Painel interno: itens do Genius | em andamento | O que o painel interno do Genius tem e o Avant não (Pedro, 03/11): documentos do cliente Manage Inventory (identidade e comprovante de residência, enviados pelo cliente e aprovados pela equipe) e observações da equipe (core#188, feito), tarefas de suporte (core#189, feito, domínio `support_tasks`), checklist de domínio automatizado (core#190, domínio `site_checklists`), ferramentas da API do GAM com escrita, em Ferramentas (core#191: domínio `gam/tools` em core#201, escritas por SOAP no worker#64), e comparar períodos no relatório personalizado mais uma consulta por relatório (core#192) |
+| M4 Métricas do GAM | feito | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho |
+| M5 Personalização e relatórios | quase: resta o épico avant-web#22 | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
+| M6 Grupos e comissão | feito | Grupos de funcionários na Empresa (um por pessoa), imagem da Empresa, metas da equipe Groone e a comissão da equipe Groone (core v0.42.0 a v0.49.0): regras no papel por evento (cadastro e reativação de cliente, network e site), prazos com espera e duração, cálculo diário em dólar sobre o revshare da Groone, fechamento do dia 15 ao 20 depois do `Mcm_Earnings` com a dedução do GAM, desconto manual, emissão. Regras do Pedro (30/10): cada receita conta uma vez por pessoa (vale o prazo de maior percentual) e cada evento gera um prazo só na vida do item. Spec em `docs/superpowers/specs/2026-10-29-comissao-da-equipe-groone-design.md` (avant-core). Decisões: `docs/decisoes/08-grupos-e-imagem-da-empresa.md`, `docs/decisoes/09-comissao-da-equipe-groone.md` |
+| M7 Invoices | feito | Invoices da equipe Groone como no Genius: a pessoa cria a invoice do mês com a comissão validada (linhas travadas com os textos do Genius, em inglês), soma serviços do catálogo com valor livre, emite com os dados de recebimento (sempre pessoa física; De GROONE, LLC para o funcionário); o financeiro devolve para rascunho com motivo por e-mail ou confirma o pagamento. Emitida ou paga não muda (triggers no banco). Permissões `internal.invoices.view/manage/services`. Core v0.50.0, spec em `docs/superpowers/specs/2026-10-30-invoices-da-equipe-design.md` (avant-core) |
+| M8 Painel interno: itens do Genius | em andamento | O que o painel interno do Genius tem e o Avant não (Pedro, 03/11): documentos do cliente Manage Inventory (identidade e comprovante de residência, enviados pelo cliente e aprovados pela equipe) e observações da equipe (core#188, feito), tarefas de suporte (core#189, feito, domínio `support_tasks`), checklist de domínio automatizado (core#190, feito, domínio `site_checklists`), ferramentas da API do GAM com escrita, em Ferramentas (core#191, feito: domínio `gam/tools` em core#201, escritas por SOAP no worker#64; as rotas, api#150, estão na pre-develop), e comparar períodos no relatório personalizado mais uma consulta por relatório (core#192, aberto) |
 | Pós-MVP | sem data | O que sobrar depois do piloto |
 
-Issues abertas em 23/10 (a lista viva está no GitHub):
+Issues abertas em 03/11 (a lista viva está no GitHub):
 
-- **avant-infra:** #4 pipeline Jenkins e GHCR, #5 monitoramento, #6 tarefas do Pedro, #7 backups, #8 teste de carga, #9 revisão de segurança, #10 deploy de produção, #11 piloto
-- **avant-api:** #14 Jenkinsfile; #15 a #26 métricas e personalização
-- **avant-worker:** #4 Jenkinsfile, #6 métricas do Celery; #7 a #9 sincronização de métricas, alertas e envios agendados
-- **avant-web:** #8 Jenkinsfile, #9 E2E com Playwright; #11 a #21 telas de métricas e personalização; #22 épico da personalização
-- **avant-core:** #12 a #23 métricas e personalização
+- **avant-infra:** M1 #4 pipeline Jenkins e GHCR, #5 monitoramento, #6 tarefas do Pedro; M2 #7 backups, #8 teste de carga, #9 revisão de segurança, #10 deploy de produção; M3 #11 piloto; Pós-MVP #16
+- **avant-core:** M8 #192 comparar períodos no relatório personalizado; Pós-MVP #18, #23, #54, #56, #57, #59, #104, #193
+- **avant-api:** M8 #150 rotas das ferramentas do GAM (na pre-develop); Pós-MVP #15, #21, #26, #50
+- **avant-worker:** Pós-MVP #31
+- **avant-web:** M2 #9 E2E com Playwright; M5 #22 épico da personalização; Pós-MVP #16, #21, #59, #142
 
 A personalização segue o HubSpot como inspiração (pedido do Pedro, 23/10). Cada funcionalidade tem uma issue por repositório, ligadas entre si: core primeiro, depois api e worker, por fim web.
 
@@ -88,8 +88,9 @@ Fora do escopo por enquanto: port das regras de preço, cobrança, G-Tag, tabela
 ## Como trabalhar nos repositórios
 
 - Rodar tudo na máquina em modo de desenvolvimento: `avant-infra/docs/desenvolvimento.md` ([link](https://github.com/PedroH3nri/avant-infra/blob/develop/docs/desenvolvimento.md)).
-- Branches `feat/...` ou `fix/...` a partir de `develop`; PR para `develop`. `develop` publica em staging, `main` em produção.
-- O Claude pode fazer merge dos próprios PRs em `develop` quando o CI passa e não há comentário pendente. `main` e produção ficam com o Pedro.
+- Branches `feat/...` ou `fix/...` a partir de `pre-develop`; PR para `pre-develop`. A `pre-develop` sobe para a `develop` num PR próprio. `develop` publica em staging, `main` em produção.
+- **Revisão antes de qualquer merge** (Pedro, 30/10): todo PR passa por revisão de código de um revisor de contexto novo; o que for crítico ou importante é corrigido, com teste, antes do merge. E só com a CI verde (o `gh api` mescla mesmo com a CI vermelha: espere `gh pr checks --watch`).
+- O Claude pode mesclar na `pre-develop` depois da revisão e da CI. Levar a `pre-develop` para a `develop` pede o ok do Pedro. `main` e produção ficam com o Pedro.
 - Tags do `avant-core` saem pela GitHub Action `release.yml` quando a versão do `pyproject.toml` muda (push de tag direto pode ser bloqueado).
 - Antes do PR, Python: `uv run ruff format . && uv run ruff check . && uv run mypy && uv run pytest`. Web: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 - Mudança de model que a API usa vira dois PRs: um no core (nova tag) e outro subindo a versão na API e no worker.
