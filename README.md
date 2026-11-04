@@ -53,7 +53,7 @@ Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permiss�
 
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
-| `compose.env` | Pedro | senhas do Postgres e do RabbitMQ (nomes no `.env.example`) |
+| `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
 | `app.env` | Pedro | segredos da aplicação: sessão, 2FA, Resend, Google, GAM |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
@@ -81,6 +81,20 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 3. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
 4. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
 5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
+
+### Redis com senha (uma vez por ambiente)
+
+Desde avant-infra#68 o Redis exige senha. O primeiro deploy depois disso recria o Redis com a
+senha, mas a API ativa e os workers continuam com a URL antiga, sem senha, até serem recriados:
+login, chave de API, relatórios e as travas do worker dão erro nesse meio tempo. Por isso, em
+cada ambiente, numa janela combinada e antes do primeiro deploy pelo Jenkins:
+
+1. Pôr `REDIS_PASSWORD=` (só letras e números) em `/srv/avant/<ambiente>/compose.env`.
+2. Rodar na VM `scripts/deploy.sh <ambiente> up`, que recria a base, a cor ativa da API e do
+   painel e os workers de uma vez, já com a URL nova.
+
+O Postgres, o RabbitMQ e o nginx também reiniciam nesse `up` (mudaram os tetos de memória e de
+CPU): são alguns segundos fora do ar.
 
 ## Segredos
 

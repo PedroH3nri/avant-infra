@@ -10,6 +10,12 @@ server {
     ssl_certificate     /etc/letsencrypt/live/avant.groone.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/avant.groone.com/privkey.pem;
 
+    # Só TLS 1.2 e 1.3. Sem OCSP stapling: os certificados atuais do Let's Encrypt não têm OCSP.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:avant_tls:10m;
+    ssl_session_timeout 1d;
+
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     client_max_body_size 2m;
 

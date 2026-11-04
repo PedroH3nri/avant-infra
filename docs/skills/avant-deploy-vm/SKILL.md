@@ -18,7 +18,7 @@ O repositório não tem CI. Antes do PR:
 
 ```bash
 T=$(mktemp -d)
-printf 'POSTGRES_SUPERUSER_PASSWORD=a\nAVANT_OWNER_PASSWORD=b\nAVANT_APP_PASSWORD=c\nRABBITMQ_PASSWORD=d\n' > $T/compose.env
+printf 'POSTGRES_SUPERUSER_PASSWORD=a\nAVANT_OWNER_PASSWORD=b\nAVANT_APP_PASSWORD=c\nRABBITMQ_PASSWORD=d\nREDIS_PASSWORD=e\n' > $T/compose.env
 touch $T/app.env $T/gam-service-account.json
 printf 'API_BLUE_TAG=1\nWEB_BLUE_TAG=1\nWORKER_TAG=1\nMIGRATE_TAG=1\n' > $T/release.env
 for e in staging production; do
