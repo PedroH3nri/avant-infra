@@ -3,11 +3,17 @@
 Biblioteca compartilhada (`vars/` e `resources/`) usada pelos `Jenkinsfile` do avant-api, do avant-worker e do avant-web, e o Jenkins que a roda (`compose/jenkins/`).
 
 ```groovy
-// Jenkinsfile do avant-api
-@Library('avant') _
+// Jenkinsfile do avant-api: a main (produção) usa a biblioteca da main do avant-infra; o resto,
+// a da develop.
+library(env.BRANCH_NAME == 'main' ? 'avant-main' : 'avant')
 
 avantPipeline(service: 'api', checks: 'python')
 ```
+
+São duas bibliotecas no Jenkins, `avant` (develop do avant-infra) e `avant-main` (main), sem
+troca de versão pelo Jenkinsfile: uma mudança no pipeline revisada só para staging não vale no
+deploy de produção até chegar à main do avant-infra. Antes do primeiro deploy de produção, a
+main do avant-infra precisa ter a biblioteca em dia.
 
 ## O que acontece em cada branch
 

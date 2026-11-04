@@ -24,12 +24,25 @@ jenkins:
 unclassified:
   location:
     url: "${JENKINS_URL}"
+  # Uma biblioteca por ramo, sem trocar a versão no Jenkinsfile: o deploy de produção (main)
+  # só usa o que foi revisado na main do avant-infra, e o de staging (develop), o da develop.
   globalLibraries:
     libraries:
       - name: avant
         defaultVersion: develop
         implicit: false
-        allowVersionOverride: true
+        allowVersionOverride: false
+        retriever:
+          modernSCM:
+            libraryPath: jenkins/
+            scm:
+              git:
+                remote: https://github.com/PedroH3nri/avant-infra.git
+                credentialsId: github-checkout
+      - name: avant-main
+        defaultVersion: main
+        implicit: false
+        allowVersionOverride: false
         retriever:
           modernSCM:
             libraryPath: jenkins/
