@@ -72,14 +72,6 @@ credentials:
               id: avant-core-access
               description: "Leitura do avant-core privado no build das imagens e nas checagens"
               secret: "${avant_core_access}"
-          - basicSSHUserPrivateKey:
-              scope: GLOBAL
-              id: avant-deploy-ssh
-              description: "Deploy nas VMs (só roda scripts/remote-deploy.sh)"
-              username: avant-deploy
-              privateKeySource:
-                directEntry:
-                  privateKey: "${deploy_ssh_key}"
           - file:
               scope: GLOBAL
               id: avant-known-hosts
@@ -87,43 +79,81 @@ credentials:
               fileName: known_hosts
               secretBytes: "${readFileBase64:/run/secrets/known_hosts}"
 
-# Um job multibranch por serviço. Só develop (staging) e main (produção): os PRs já passam
-# pelas checagens do GitHub Actions.
+# Uma pasta por ambiente, com um job multibranch por serviço: staging só com a develop e
+# production só com a main (os PRs já passam pelas checagens do GitHub Actions). A chave SSH de
+# deploy de cada ambiente fica só na pasta dele, com o mesmo id (avant-deploy-ssh): um build da
+# develop não enxerga a chave da produção.
 jobs:
   - script: |
-      ['avant-api', 'avant-worker', 'avant-web'].each { repositoryName ->
-        multibranchPipelineJob(repositoryName) {
-          displayName(repositoryName)
-          branchSources {
-            branchSource {
-              source {
-                github {
-                  id(repositoryName)
-                  repoOwner('PedroH3nri')
-                  repository(repositoryName)
-                  repositoryUrl('https://github.com/PedroH3nri/' + repositoryName)
-                  configuredByUrl(false)
-                  credentialsId('github-checkout')
-                  traits {
-                    gitHubBranchDiscovery {
-                      strategyId(3)
-                    }
-                    headRegexFilter {
-                      regex('develop|main')
+      def deployKeys = [
+        staging: '''${deploy_ssh_key_staging}''',
+        production: '''${deploy_ssh_key_production}''',
+      ]
+      def branches = [staging: 'develop', production: 'main']
+      branches.each { environmentName, branchName ->
+        folder(environmentName) {
+          displayName(environmentName)
+          properties {
+            folderCredentialsProperty {
+              domainCredentials {
+                domainCredentials {
+                  domain {
+                    name('')
+                    description('')
+                  }
+                  credentials {
+                    basicSSHUserPrivateKey {
+                      scope('GLOBAL')
+                      id('avant-deploy-ssh')
+                      description('Deploy na VM de ' + environmentName + ' (só roda scripts/remote-deploy.sh)')
+                      username('avant-deploy')
+                      passphrase('')
+                      privateKeySource {
+                        directEntryPrivateKeySource {
+                          privateKey(hudson.util.Secret.fromString(deployKeys[environmentName]))
+                        }
+                      }
                     }
                   }
                 }
               }
             }
           }
-          orphanedItemStrategy {
-            discardOldItems {
-              numToKeep(5)
+        }
+        ['avant-api', 'avant-worker', 'avant-web'].each { repositoryName ->
+          multibranchPipelineJob(environmentName + '/' + repositoryName) {
+            displayName(repositoryName)
+            branchSources {
+              branchSource {
+                source {
+                  github {
+                    id(environmentName + '-' + repositoryName)
+                    repoOwner('PedroH3nri')
+                    repository(repositoryName)
+                    repositoryUrl('https://github.com/PedroH3nri/' + repositoryName)
+                    configuredByUrl(false)
+                    credentialsId('github-checkout')
+                    traits {
+                      gitHubBranchDiscovery {
+                        strategyId(3)
+                      }
+                      headRegexFilter {
+                        regex(branchName)
+                      }
+                    }
+                  }
+                }
+              }
             }
-          }
-          triggers {
-            periodicFolderTrigger {
-              interval('5m')
+            orphanedItemStrategy {
+              discardOldItems {
+                numToKeep(5)
+              }
+            }
+            triggers {
+              periodicFolderTrigger {
+                interval('5m')
+              }
             }
           }
         }
