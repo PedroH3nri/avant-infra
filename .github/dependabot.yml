@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: docker-compose
+    directories:
+      - /compose/local
+      - /compose/vm
+    target-branch: pre-develop
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: rabbitmq
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
+    groups:
+      imagens:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /compose/jenkins
+    target-branch: pre-develop
+    schedule:
+      interval: weekly
+    groups:
+      imagens:
+        patterns: ["*"]

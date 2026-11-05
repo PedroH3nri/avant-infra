@@ -96,6 +96,39 @@ cada ambiente, numa janela combinada e antes do primeiro deploy pelo Jenkins:
 O Postgres, o RabbitMQ e o nginx também reiniciam nesse `up` (mudaram os tetos de memória e de
 CPU): são alguns segundos fora do ar.
 
+### Papéis do Postgres (uma vez por banco que já existe)
+
+Desde avant-infra#60 e #64 as senhas do Postgres entram como secrets do compose (precisa do
+Docker Compose 2.23 ou mais novo) e o `avant_app` tem `statement_timeout` e
+`idle_in_transaction_session_timeout` de 5 minutos. O `postgres/init/01-roles.sh` só roda na
+criação do banco; num banco que já existe (staging ou o seu local), rodar uma vez:
+
+```bash
+docker compose ... exec postgres psql -U postgres -d avant -c \
+  "ALTER ROLE avant_app SET statement_timeout = '5min'" -c \
+  "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'"
+```
+
+Troque `-U postgres -d avant` se `POSTGRES_SUPERUSER` ou `POSTGRES_DB` forem outros no
+`compose.env`. O `ALTER ROLE` só vale para conexões novas: as conexões da API e dos workers pegam
+o timeout depois que eles forem recriados (o `up` abaixo resolve isso).
+
+### Imagens com digest e Postgres com secrets (uma vez por ambiente)
+
+Desde avant-infra#64, as imagens da base têm digest e o Postgres recebe as senhas por secrets. O
+primeiro deploy depois disso recria o Postgres, o RabbitMQ, o Redis e o nginx, porque o deploy de
+qualquer serviço chama a base. A cor ativa da API e os workers ficam alguns segundos sem banco e
+sem fila, e tarefas do Celery em andamento podem falhar. Por isso, em cada ambiente, numa janela
+combinada e antes do primeiro deploy pelo Jenkins:
+
+1. Conferir na VM que `docker compose version` é 2.23 ou mais novo. Com um Compose mais velho,
+   o `secrets: environment:` é recusado na leitura do arquivo e todo `deploy.sh` falha.
+2. Conferir que `POSTGRES_SUPERUSER_PASSWORD`, `AVANT_OWNER_PASSWORD` e `AVANT_APP_PASSWORD` estão
+   em `/srv/avant/<ambiente>/compose.env`.
+3. Rodar na VM `scripts/deploy.sh <ambiente> up`, que recria a base, a cor ativa da API e do
+   painel e os workers de uma vez.
+4. Rodar o SQL dos papéis acima, se ainda não rodou nesse banco.
+
 ## Segredos
 
 Nenhum segredo entra no Git. O `.env.example` traz só os nomes das variáveis. Em staging e produção os valores ficam nas VMs.

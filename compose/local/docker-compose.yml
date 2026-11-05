@@ -9,16 +9,16 @@ name: avant
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-avant}
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?defina no .env}
-      AVANT_OWNER_PASSWORD: ${AVANT_OWNER_PASSWORD:?defina no .env}
-      AVANT_APP_PASSWORD: ${AVANT_APP_PASSWORD:?defina no .env}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../../postgres/init:/docker-entrypoint-initdb.d:ro
+    # Senhas como secrets (compose 2.23 ou mais novo): não ficam no ambiente do contêiner.
+    secrets: [postgres-password, avant-owner-password, avant-app-password]
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -27,7 +27,7 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13-management-alpine@sha256:606d8c0d6b3c18d1da9afc53bc7cdb2a8d5486df91b5a9830e9e07626c9ae281
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-avant}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina no .env}
@@ -40,7 +40,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "127.0.0.1:6379:6379"
@@ -87,12 +87,20 @@ services:
 
   nginx:
     profiles: ["app"]
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     volumes:
       - ../../nginx/avant.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on: [api, web]
     ports:
       - "8080:80"
+
+secrets:
+  postgres-password:
+    environment: POSTGRES_SUPERUSER_PASSWORD
+  avant-owner-password:
+    environment: AVANT_OWNER_PASSWORD
+  avant-app-password:
+    environment: AVANT_APP_PASSWORD
 
 volumes:
   postgres-data:

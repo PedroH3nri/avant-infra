@@ -30,7 +30,8 @@ services:
       - github_checkout_token
       - ghcr_push_token
       - avant_core_access
-      - deploy_ssh_key
+      - deploy_ssh_key_staging
+      - deploy_ssh_key_production
       - known_hosts
     # Só pela VPN ou por um túnel SSH; para o GitHub, o Jenkins varre os repositórios
     # de 5 em 5 minutos, sem webhook.
@@ -50,7 +51,9 @@ secrets:
     file: /srv/jenkins/secrets/ghcr_push_token
   avant_core_access:
     file: /srv/jenkins/secrets/avant_core_access
-  deploy_ssh_key:
-    file: /srv/jenkins/secrets/deploy_ssh_key
+  deploy_ssh_key_staging:
+    file: /srv/jenkins/secrets/deploy_ssh_key_staging
+  deploy_ssh_key_production:
+    file: /srv/jenkins/secrets/deploy_ssh_key_production
   known_hosts:
     file: /srv/jenkins/secrets/known_hosts
