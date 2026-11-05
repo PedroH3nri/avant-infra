@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: docker-compose
+    directories:
+      - /compose/local
+      - /compose/vm
+    target-branch: pre-develop
+    schedule:
+      interval: weekly
+    groups:
+      imagens:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /compose/jenkins
+    target-branch: pre-develop
+    schedule:
+      interval: weekly
+    groups:
+      imagens:
+        patterns: ["*"]
