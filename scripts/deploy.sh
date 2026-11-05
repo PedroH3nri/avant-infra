@@ -34,6 +34,10 @@ STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 for secret_file in compose.env app.env; do
   [[ -f "$STATE_DIR/$secret_file" ]] || die "faltou $STATE_DIR/$secret_file (segredos da VM)"
 done
+# As senhas do Postgres viram secrets do compose, onde o :? não vale: a checagem fica aqui.
+for password in POSTGRES_SUPERUSER_PASSWORD AVANT_OWNER_PASSWORD AVANT_APP_PASSWORD; do
+  grep -Eq "^${password}=.+" "$STATE_DIR/compose.env" || die "defina $password em $STATE_DIR/compose.env"
+done
 RELEASE="$STATE_DIR/release.env"
 mkdir -p "$STATE_DIR/upstreams"
 touch "$RELEASE"
