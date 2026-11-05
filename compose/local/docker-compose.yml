@@ -13,12 +13,12 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-avant}
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?defina no .env}
-      AVANT_OWNER_PASSWORD: ${AVANT_OWNER_PASSWORD:?defina no .env}
-      AVANT_APP_PASSWORD: ${AVANT_APP_PASSWORD:?defina no .env}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../../postgres/init:/docker-entrypoint-initdb.d:ro
+    # Senhas como secrets (compose 2.23 ou mais novo): não ficam no ambiente do contêiner.
+    secrets: [postgres-password, avant-owner-password, avant-app-password]
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -93,6 +93,14 @@ services:
     depends_on: [api, web]
     ports:
       - "8080:80"
+
+secrets:
+  postgres-password:
+    environment: POSTGRES_SUPERUSER_PASSWORD
+  avant-owner-password:
+    environment: AVANT_OWNER_PASSWORD
+  avant-app-password:
+    environment: AVANT_APP_PASSWORD
 
 volumes:
   postgres-data:
