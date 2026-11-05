@@ -96,6 +96,19 @@ cada ambiente, numa janela combinada e antes do primeiro deploy pelo Jenkins:
 O Postgres, o RabbitMQ e o nginx também reiniciam nesse `up` (mudaram os tetos de memória e de
 CPU): são alguns segundos fora do ar.
 
+### Papéis do Postgres (uma vez por banco que já existe)
+
+Desde avant-infra#60 e #64 as senhas do Postgres entram como secrets do compose (precisa do
+Docker Compose 2.23 ou mais novo) e o `avant_app` tem `statement_timeout` e
+`idle_in_transaction_session_timeout` de 5 minutos. O `postgres/init/01-roles.sh` só roda na
+criação do banco; num banco que já existe (staging ou o seu local), rodar uma vez:
+
+```bash
+docker compose ... exec postgres psql -U postgres -d avant -c \
+  "ALTER ROLE avant_app SET statement_timeout = '5min'" -c \
+  "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'"
+```
+
 ## Segredos
 
 Nenhum segredo entra no Git. O `.env.example` traz só os nomes das variáveis. Em staging e produção os valores ficam nas VMs.
