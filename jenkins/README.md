@@ -51,9 +51,21 @@ O Jenkins escuta só em `127.0.0.1:8090` (acesso por VPN ou `ssh -L 8090:127.0.0
 
 ### Uma chave de deploy por ambiente
 
-A chave SSH de deploy de cada ambiente fica só na pasta do Jenkins dele, com o mesmo id (`avant-deploy-ssh`): um build da `develop` (pasta `staging`) não enxerga a chave da produção. Os builds ainda rodam no controlador, que tem o socket do Docker; isolar os builds num agente sem o socket está em avant-infra#75.
+A chave SSH de deploy de cada ambiente fica só na pasta do Jenkins dele, com o mesmo id (`avant-deploy-ssh`): um build da `develop` (pasta `staging`) não consegue *usar* a chave da produção pelo id.
 
-Quem já tinha o Jenkins com os jobs no topo (`avant-api`, `avant-worker`, `avant-web`): depois do primeiro boot com as pastas, apague esses três jobs antigos pela tela (o CasC cria os novos, mas não remove os velhos), crie as duas chaves e troque a chave pública nas VMs.
+**Isso ainda não é isolamento completo.** Os builds rodam no controlador, como o mesmo usuário (1000) que lê `/run/secrets/` e o `JENKINS_HOME`, e com o socket do Docker. Quem executa código num build da `develop` (um `sh` no Jenkinsfile ou num script do repositório) ainda consegue ler a chave da produção direto do arquivo. O isolamento real depende de rodar os builds num agente sem o socket, sem `/run/secrets` e sem o `JENKINS_HOME` (avant-infra#75).
+
+#### Trocar para as pastas num Jenkins que já existe
+
+Para quem já tinha os jobs no topo (`avant-api`, `avant-worker`, `avant-web`) e a chave única `deploy_ssh_key`, nesta ordem:
+
+1. Gere duas chaves ed25519 **novas**. Não reaproveite a antiga como chave de staging: a VM de produção ainda aceita a antiga.
+2. Ponha a pública de staging só no `authorized_keys` do `avant-deploy` da VM de staging, e a de produção só no da VM de produção, cada uma com o `command=` do `remote-deploy.sh` do seu ambiente. Por enquanto, deixe a chave antiga onde está.
+3. Crie `/srv/jenkins/secrets/deploy_ssh_key_staging` e `deploy_ssh_key_production` (dono 1000, permissão 600). Eles precisam existir **antes** do `up`: são secrets `file:` do compose, e o `up` falha sem eles.
+4. Atualize o checkout do avant-infra usado pelo Jenkins e rode o `up -d --build` do bloco acima. É preciso recriar o contêiner para montar os secrets novos; só reiniciar deixa a credencial vazia.
+5. No boot, as pastas novas varrem os repositórios e já disparam os builds da `develop` (deploy em staging) e da `main` (produção). Acompanhe e confira que os deploys de staging passam com a chave nova.
+6. Apague pela tela os três jobs antigos do topo. O CasC cria os novos, mas não remove os velhos, e eles seguiriam construindo a cada merge e falhando por falta da credencial global.
+7. Tire a chave pública antiga do `authorized_keys` das **duas** VMs e apague `/srv/jenkins/secrets/deploy_ssh_key`.
 
 ### Segredos (em `/srv/jenkins/secrets/`, um arquivo por segredo, dono 1000, permissão 600)
 

@@ -7,6 +7,13 @@ updates:
     target-branch: pre-develop
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: rabbitmq
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
     groups:
       imagens:
         patterns: ["*"]
