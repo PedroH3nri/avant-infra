@@ -34,9 +34,14 @@ STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 for secret_file in compose.env app.env; do
   [[ -f "$STATE_DIR/$secret_file" ]] || die "faltou $STATE_DIR/$secret_file (segredos da VM)"
 done
-# As senhas do Postgres viram secrets do compose, onde o :? não vale: a checagem fica aqui.
+# As senhas do Postgres viram secrets do compose, onde o :? não vale: a checagem fica aqui, com o
+# valor que o compose vai ler (a última linha da variável, sem aspas nem espaços).
+effective_value() {
+  grep -E "^(export[[:space:]]+)?$1=" "$STATE_DIR/compose.env" | tail -n 1 | cut -d= -f2- \
+    | sed -E "s/^[[:space:]]*['\"]?//; s/['\"]?[[:space:]]*\$//"
+}
 for password in POSTGRES_SUPERUSER_PASSWORD AVANT_OWNER_PASSWORD AVANT_APP_PASSWORD; do
-  grep -Eq "^${password}=.+" "$STATE_DIR/compose.env" || die "defina $password em $STATE_DIR/compose.env"
+  [[ -n "$(effective_value "$password")" ]] || die "defina $password em $STATE_DIR/compose.env"
 done
 RELEASE="$STATE_DIR/release.env"
 mkdir -p "$STATE_DIR/upstreams"

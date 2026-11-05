@@ -109,6 +109,10 @@ docker compose ... exec postgres psql -U postgres -d avant -c \
   "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'"
 ```
 
+Num ambiente novo, se o `01-roles.sh` parar (secret de senha vazio ou ausente), o volume
+`postgres-data` fica meio inicializado: no `up` seguinte o Postgres sobe sem os papéis e não roda
+o init de novo. Corrija o secret, apague o volume (sem dados ainda) e suba de novo.
+
 Troque `-U postgres -d avant` se `POSTGRES_SUPERUSER` ou `POSTGRES_DB` forem outros no
 `compose.env`. O `ALTER ROLE` só vale para conexões novas: as conexões da API e dos workers pegam
 o timeout depois que eles forem recriados (o `up` abaixo resolve isso).
