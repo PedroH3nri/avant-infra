@@ -5,5 +5,5 @@ String uv() {
 
 /** Imagem do Node para as checagens do avant-web (a mesma versão do Dockerfile do painel). */
 String node() {
-  return 'node:24-alpine'
+  return 'node:26-alpine'
 }

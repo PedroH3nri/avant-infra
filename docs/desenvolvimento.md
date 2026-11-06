@@ -16,18 +16,18 @@ navegador → http://localhost:5173  (Vite, avant-web)
 | --- | --- | --- |
 | Docker com Compose | 24 ou mais | Postgres 16, RabbitMQ 3.13 e Redis 7 |
 | [uv](https://docs.astral.sh/uv/) | 0.5 ou mais | Python 3.12 (o uv baixa sozinho) e dependências do core, da API e do worker |
-| Node.js e pnpm | Node 24, pnpm 10.28 (o `packageManager` do avant-web) | painel Vue |
+| Node.js e pnpm | Node 26, pnpm 10.28 (o `packageManager` do avant-web) | painel Vue |
 | git e acesso ao GitHub | | o avant-core é privado e a API e o worker o instalam por tag do Git |
 | graphify (opcional) | `uv tool install graphifyy` | atualizar o grafo do código (`graphify update .`) |
 
 No macOS (Intel ou Apple Silicon), pelo Homebrew:
 
 ```bash
-brew install uv node@24     # siga o aviso do brew para pôr o node@24 no PATH
-corepack enable             # vem com o Node; usa o pnpm do packageManager
+brew install uv node        # o Node 26; o corepack não vem mais com o Node
+npm install -g pnpm@10.28.0 # a versão do packageManager do avant-web
 ```
 
-Em Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` para o uv e o Node 24 pelo gerenciador que preferir (nvm, fnm, mise), depois `corepack enable`. Confira com `uv --version` e, dentro do `avant-web`, `pnpm --version` (10.28.0).
+Em Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` para o uv e o Node 26 pelo gerenciador que preferir (nvm, fnm, mise), depois `npm install -g pnpm@10.28.0` (do Node 25 em diante o corepack não vem junto). Confira com `uv --version` e, dentro do `avant-web`, `pnpm --version` (10.28.0).
 
 O `uv sync` da API e do worker baixa o avant-core pelo GitHub. Se o seu git ainda não autentica no GitHub, rode `gh auth login` (ou configure uma chave SSH) antes.
 

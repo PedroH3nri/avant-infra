@@ -34,7 +34,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 
 ## Arquitetura
 
-- Python 3.12 com uv, FastAPI, Celery (broker RabbitMQ, Redis para resultados, locks, limites e eventos), PostgreSQL para tudo. Front em Vue 3 (SPA), Tailwind e componentes no estilo shadcn-vue (reka-ui).
+- Python 3.12 com uv, FastAPI, Celery (broker RabbitMQ, Redis para resultados, locks, limites e eventos), PostgreSQL para tudo. Front em Vue 3 (SPA), Tailwind e componentes no estilo shadcn-vue (reka-ui), com build e CI no Node 26 e o pnpm 10.28 instalado pelo npm (do Node 25 em diante o corepack não vem junto; web#228).
 - Microserviços que dividem um banco. API first.
 - **Row Level Security ligado.** A aplicação conecta como `avant_app` (não é dono das tabelas, sem BYPASSRLS); as migrations usam `avant_owner`. A Unit of Work faz `SET app.company_id`. Não mudar isso.
 - O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por domínio (a lista está em Repositórios), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
