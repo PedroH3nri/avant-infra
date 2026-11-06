@@ -1,17 +1,20 @@
 #!/bin/sh
-# Checagens do avant-web, as mesmas do CI do GitHub. O pnpm vem do packageManager do
-# package.json, pelo corepack, sem instalar nada global no container.
+# Checagens do avant-web, as mesmas do CI do GitHub. O Node 25 em diante não traz o corepack:
+# o pnpm entra pelo npm, na versão do packageManager, dentro da pasta temporária do job.
 set -eu
 
 export HOME="$WORKSPACE_TMP/home"
-export COREPACK_HOME="$WORKSPACE_TMP/corepack"
-export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+export NPM_CONFIG_PREFIX="$WORKSPACE_TMP/npm"
 export npm_config_store_dir="$WORKSPACE_TMP/pnpm-store"
+export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$HOME"
 
-corepack pnpm install --frozen-lockfile
-corepack pnpm lint
-corepack pnpm clean-code
-corepack pnpm typecheck
-corepack pnpm test
-corepack pnpm build
+pnpm_version=$(node -p "require('./package.json').packageManager.split('@')[1]")
+npm install -g "pnpm@$pnpm_version"
+
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm clean-code
+pnpm typecheck
+pnpm test
+pnpm build
