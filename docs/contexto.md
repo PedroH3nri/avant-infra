@@ -24,7 +24,8 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 
 ## GAM
 
-- Uma conta de serviço da Groone para tudo. A conexão é automática quando o cliente aceita o convite MCM; senão, um passo a passo guiado. A conta entra sempre como administradora.
+- Uma conta de serviço da Groone para tudo, só clientes ligados por MCM.
+- Cadastro de network (Pedro, 06/11, core#289): a equipe Groone cadastra pelo painel interno escolhendo o cliente (`internal.networks.assign`), ou o cliente cadastra pelo painel dele (`network.connect`). A network fica ligada à Empresa e ao dono dela (`owner_user_id`, preenchido quando o dono aceita o convite), mesmo quando quem cadastrou é um funcionário. Nada é ligado pelo e-mail da conta do GAM. Todo cadastro testa a conexão (MCM aprovado na Groone e, no Manage Account, a conta de serviço lendo a network): válida, a network fica ativa; inválida, fica pendente e é testada de novo de hora em hora.
 - Ad Manager REST API v1 atrás de um adaptador `gam_client` **somente leitura** (nenhum método de escrita sem revisão do Pedro).
 - Descoberta MCM de hora em hora (childPublishers); sites e ad units importados a cada 6 horas.
 - Site também pode ser cadastrado à mão pelo domínio (`sites.manage`, decisão de 2026-10-24): fica "aguardando GAM" e a importação o junta ao site do GAM com o mesmo domínio, mantendo as atribuições. Ad units vêm só do GAM.
@@ -34,7 +35,7 @@ O Groone Avant ("Avant") é um SaaS para os clientes ad tech da Groone LLC: dono
 
 ## Arquitetura
 
-- Python 3.12 com uv, FastAPI, Celery (broker RabbitMQ, Redis para resultados, locks, limites e eventos), PostgreSQL para tudo. Front em Vue 3 (SPA), Tailwind e componentes no estilo shadcn-vue (reka-ui).
+- Python 3.12 com uv, FastAPI, Celery (broker RabbitMQ, Redis para resultados, locks, limites e eventos), PostgreSQL para tudo. Front em Vue 3 (SPA), Tailwind e componentes no estilo shadcn-vue (reka-ui), com build e CI no Node 26 e o pnpm 10.28 instalado pelo npm (do Node 25 em diante o corepack não vem junto; web#228).
 - Microserviços que dividem um banco. API first.
 - **Row Level Security ligado.** A aplicação conecta como `avant_app` (não é dono das tabelas, sem BYPASSRLS); as migrations usam `avant_owner`. A Unit of Work faz `SET app.company_id`. Não mudar isso.
 - O `avant-core` segue arquitetura hexagonal pragmática: ports e adapters por domínio (a lista está em Repositórios), entidades em dataclass com mapeamento imperativo do SQLAlchemy.
@@ -66,7 +67,7 @@ Cada repositório tem um `CLAUDE.md` com as regras dele e um README. Leia os doi
 | M1 Staging no ar | 06/11 | Deploy nas VMs, pipeline Jenkins e imagens no GHCR, monitoramento, preparação das VMs |
 | M2 Segurança e produção | 21/12 | Revisão de segurança, teste de carga, backups testados, E2E, primeiro deploy de produção |
 | M3 Piloto | 31/12 | Um cliente real da rede Groone (ainda não escolhido) |
-| M4 Métricas do GAM | feito | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho |
+| M4 Métricas do GAM | feito | Models e sincronização das métricas, motor de consulta, primeira tela de desempenho. Desde a v0.82.0 (core#230), oito tabelas por nível (network, domínio, ad unit, key-value), resumidas e `_detail`; key-value sem dispositivo e particionado por key |
 | M5 Personalização e relatórios | quase: resta o épico avant-web#22 | Personalização no estilo HubSpot: dashboards, construtor de relatórios, páginas de relatório no menu, métricas personalizadas (fórmulas), metas, alertas, envios agendados, propriedades personalizadas, visões salvas, tema e marca. Épico: avant-web#22 |
 | M6 Grupos e comissão | feito | Grupos de funcionários na Empresa (um por pessoa), imagem da Empresa, metas da equipe Groone e a comissão da equipe Groone (core v0.42.0 a v0.49.0): regras no papel por evento (cadastro e reativação de cliente, network e site), prazos com espera e duração, cálculo diário em dólar sobre o revshare da Groone, fechamento do dia 15 ao 20 depois do `Mcm_Earnings` com a dedução do GAM, desconto manual, emissão. Regras do Pedro (30/10): cada receita conta uma vez por pessoa (vale o prazo de maior percentual) e cada evento gera um prazo só na vida do item. Spec em `docs/superpowers/specs/2026-10-29-comissao-da-equipe-groone-design.md` (avant-core). Decisões: `docs/decisoes/08-grupos-e-imagem-da-empresa.md`, `docs/decisoes/09-comissao-da-equipe-groone.md` |
 | M7 Invoices | feito | Invoices da equipe Groone como no Genius: a pessoa cria a invoice do mês com a comissão validada (linhas travadas com os textos do Genius, em inglês), soma serviços do catálogo com valor livre, emite com os dados de recebimento (sempre pessoa física; De GROONE, LLC para o funcionário); o financeiro devolve para rascunho com motivo por e-mail ou confirma o pagamento. Emitida ou paga não muda (triggers no banco). Permissões `internal.invoices.view/manage/services`. Core v0.50.0, spec em `docs/superpowers/specs/2026-10-30-invoices-da-equipe-design.md` (avant-core) |
