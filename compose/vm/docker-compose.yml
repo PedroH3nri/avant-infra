@@ -40,6 +40,10 @@ x-api: &api
   <<: *app
   mem_limit: ${API_MEM_LIMIT:-1g}
   cpus: ${API_CPUS:-2}
+  # Base GeoLite2 Country: o país de quem pede os floors das regras de preço (/api/tag/prices).
+  # Só lida com GEOLITE2_COUNTRY_FILE=/geoip/GeoLite2-Country.mmdb no app.env, como no worker.
+  volumes:
+    - ${AVANT_STATE_DIR}/geoip:/geoip:ro
   deploy:
     replicas: ${API_REPLICAS:-1}
   stop_grace_period: 30s
