@@ -57,6 +57,7 @@ Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permiss�
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
 | `app.env` | Pedro | segredos da aplicação: sessão, 2FA, Resend, Google, GAM |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` |
+| `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
 | `upstreams/*.conf` | `deploy.sh` | para qual cor o nginx manda o tráfego |
 
@@ -79,9 +80,26 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 
 1. Preparar o usuário `avant-deploy`, a cópia do avant-infra em `/opt/avant-infra/<ambiente>` e a chave do Jenkins ([`jenkins/README.md`](jenkins/README.md#preparar-uma-vm-para-receber-deploy)).
 2. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
+   Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo).
 3. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
 4. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
 5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
+
+### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
+
+O worker descobre o país de cada visita da ad tag (M10) pelo IP, com a base GeoLite2 Country da
+MaxMind. Sem ela tudo funciona, mas o país fica `unknown` nas métricas. Em cada VM:
+
+1. Criar uma conta grátis em maxmind.com e gerar uma license key (fica só na VM, nunca no Git).
+2. Baixar a base GeoLite2 Country (`.mmdb`) para
+   `/srv/avant/<ambiente>/geoip/GeoLite2-Country.mmdb`. A pasta `geoip/` é criada pelo
+   `deploy.sh`.
+3. Pôr `GEOLITE2_COUNTRY_FILE=/geoip/GeoLite2-Country.mmdb` no `app.env`. O compose monta
+   `/srv/avant/<ambiente>/geoip` em `/geoip` no `worker`, só leitura.
+4. Rodar `scripts/deploy.sh <ambiente> up` (ou o deploy do worker) para o worker subir lendo a
+   base.
+5. Atualizar a base toda semana, por exemplo com o `geoipupdate` da MaxMind num cron do host, e
+   reiniciar o `worker` depois de trocar o arquivo, porque ele lê a base só ao subir.
 
 ### Redis com senha (uma vez por ambiente)
 
