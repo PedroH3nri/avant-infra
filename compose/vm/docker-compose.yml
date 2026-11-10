@@ -174,6 +174,10 @@ services:
     mem_limit: ${WORKER_MEM_LIMIT:-3g}
     cpus: ${WORKER_CPUS:-4}
     command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail", "-c", "${WORKER_CONCURRENCY:-4}", "-n", "worker@%h", "-l", "info"]
+    # Base GeoLite2 Country (país das visitas da tag pelo IP). O worker só lê se o app.env tiver
+    # GEOLITE2_COUNTRY_FILE=/geoip/GeoLite2-Country.mmdb (ver docs/desenvolvimento.md).
+    volumes:
+      - ${AVANT_STATE_DIR}/geoip:/geoip:ro
 
   # Fila gam: só aqui entra a chave da conta de serviço. Concorrência baixa por causa
   # da cota da API do Ad Manager.

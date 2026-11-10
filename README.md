@@ -45,7 +45,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
 
 - A aplicação conecta como `avant_app` (sem BYPASSRLS). Só o serviço `migrate` recebe a senha do `avant_owner`.
 - `/api/v1/events` passa sem buffer nos dois nginx. `/api/v1/metrics` responde 404 para fora; o Prometheus lê pela rede interna.
-- `/reward.js` (do avant-web) sai com `Access-Control-Allow-Origin: *` e cache de 10 minutos; `/api/reward/*` (rotas públicas do reward, chamadas dos sites dos clientes) vai para a API com corpo de até 16 KB.
+- `/tag.js` e `/reward.js` (do avant-web, gerados do avant-tag) saem com `Access-Control-Allow-Origin: *` e cache de 10 minutos; `/api/reward/*` e `/api/tag/*` (rotas públicas do reward e da ad tag, chamadas dos sites dos clientes) vão para a API com corpo de até 16 KB.
 - O modelo do nginx do host está em `nginx/host/avant.conf.example` (certificados pelo certbot).
 
 ### Arquivos na VM
