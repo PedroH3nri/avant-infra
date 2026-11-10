@@ -44,7 +44,7 @@ for password in POSTGRES_SUPERUSER_PASSWORD AVANT_OWNER_PASSWORD AVANT_APP_PASSW
   [[ -n "$(effective_value "$password")" ]] || die "defina $password em $STATE_DIR/compose.env"
 done
 RELEASE="$STATE_DIR/release.env"
-mkdir -p "$STATE_DIR/upstreams"
+mkdir -p "$STATE_DIR/upstreams" "$STATE_DIR/geoip"
 touch "$RELEASE"
 
 # Um deploy por vez em cada ambiente.
