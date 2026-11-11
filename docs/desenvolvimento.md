@@ -82,7 +82,19 @@ REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=amqp://avant:dev_rabbit@localhost:5672//
 APP_BASE_URL=http://localhost:5173
 MFA_ENCRYPTION_KEY=
+RESEND_API_KEY=
+MAIL_FROM="Avant <onboarding@resend.dev>"
 ```
+
+`REDIS_URL`, `CELERY_BROKER_URL` e `RESEND_API_KEY` são obrigatórias em todo ambiente: sem qualquer uma delas, a API e o worker não sobem. Mantenha as aspas do `MAIL_FROM` (o `<` quebra o `source` sem elas).
+
+A `RESEND_API_KEY` é sua e nunca vai para um repositório:
+
+1. Crie uma conta grátis em https://resend.com com o seu e-mail.
+2. Em **API Keys**, crie uma chave com permissão **Sending access** e cole no `dev.env`.
+3. Deixe o remetente do sandbox, `onboarding@resend.dev`. Com ele, o Resend só entrega no e-mail da sua conta: convide esse endereço nos testes. Os e-mails enviados (com o link do convite ou da nova senha) também aparecem em **Emails**, no painel do Resend.
+
+Nenhum link com token vai para o log, em nenhum ambiente.
 
 Gere a `MFA_ENCRYPTION_KEY` uma vez e cole no arquivo. Se trocar a chave, o 2FA de quem já configurou para de funcionar:
 
@@ -102,7 +114,6 @@ O que fica de fora em desenvolvimento, e o que acontece sem cada variável:
 
 | Variável | Sem ela |
 | --- | --- |
-| `RESEND_API_KEY` | nenhum e-mail sai. O envio vai para o log da API, com o link (convite, nova senha) |
 | `GOOGLE_OAUTH_CLIENT_ID` e `_SECRET` | o botão "Entrar com Google" responde `google_unavailable` |
 | `GAM_SERVICE_ACCOUNT_FILE` e `GAM_GROONE_NETWORK_CODE` | as tarefas da fila `gam` falham com "defina GAM_SERVICE_ACCOUNT_FILE..." e a network fica com erro. O resto do painel funciona |
 | `PAGE_VIEWS_MONGO_URL` | o agendador não sincroniza as visitas e a tela Page Views fica vazia. Use um usuário só de leitura no Mongo do iGroone/data |
@@ -175,7 +186,7 @@ Abra http://localhost:5173. O Vite repassa `/api` para a API, então o painel e 
 
 1. Entre em `/entrar` com o e-mail e a senha do passo 5.
 2. A equipe Groone precisa de 2FA: o painel pede para configurar logo no primeiro login. Use qualquer app autenticador (Google Authenticator, 1Password etc.) e guarde os códigos de recuperação.
-3. Em `/interno`, cadastre um cliente de teste. O convite de dono não vai por e-mail: o link aparece no log da API, na linha `convite enviado`. Abra o link numa janela anônima para criar a conta e a Empresa do cliente.
+3. Em `/interno`, cadastre um cliente de teste com o e-mail da sua conta do Resend (o sandbox só entrega nele). O convite de dono chega por e-mail e também aparece em **Emails**, no painel do Resend. Abra o link numa janela anônima para criar a conta e a Empresa do cliente.
 4. Na Empresa do cliente você testa equipe, papéis, convites, networks, sites e chaves de API.
 5. Com os dados de demonstração, troque para "Portal Notícias (demo)" no seletor de Empresa e as telas já vêm preenchidas.
 
@@ -237,6 +248,8 @@ Use `--no-sync` enquanto estiver testando: um `uv run` sem ele (ou um `uv sync`)
 | `uv sync` da API ou do worker falha ao baixar o `avant-core` | o git não autentica no GitHub: `gh auth login` |
 | `relation "companies" does not exist` (no bootstrap ou na API) | as migrations não rodaram nesse banco: `uv run alembic upgrade head` no avant-core (passo 5). O Postgres do Docker cria só o banco vazio e os papéis |
 | A API não sobe: `database_url` ou `mfa_encryption_key` "Field required" | o `dev.env` não foi carregado neste terminal |
+| A API ou o worker não sobe: `redis_url`, `celery_broker_url` ou `resend_api_key` "Field required" (ou "é obrigatória em todo ambiente") | falta a variável no `dev.env`; as três valem em todo ambiente (passo 4) |
+| O e-mail do convite não chega | o sandbox do Resend só entrega no e-mail da sua conta; veja o envio em **Emails**, no painel do Resend |
 | Login responde 403 `mfa_required` em tudo | a equipe Groone precisa configurar o 2FA; o painel leva para essa tela |
 | Tabelas aparecem vazias ou `permission denied` | rodou a aplicação como `avant_owner`/`postgres`, ou criou um banco sem os privilégios do passo 10 |
 | O painel mostra erro de rede em toda chamada | a API não está na porta 8000, ou faltou `AVANT_API_URL` no `pnpm dev` |

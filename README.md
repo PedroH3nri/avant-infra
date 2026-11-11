@@ -55,7 +55,7 @@ Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permiss�
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
-| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, Resend, Google, GAM |
+| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, Resend (`RESEND_API_KEY` obrigatória: sem ela o `deploy.sh` para), Google, GAM |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` |
 | `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` (país das visitas) e na `api` (país dos floors das regras de preço) |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
