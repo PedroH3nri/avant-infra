@@ -15,7 +15,9 @@ GIT_CONFIG_VALUE_0="https://github.com/PedroH3nri/avant-core" \
 unset AVANT_CORE_ACCESS
 
 # Vulnerabilidades conhecidas nas dependências travadas no uv.lock (o avant-core é nosso e fica de fora).
-uv export --frozen --no-hashes --no-emit-project | grep -v '^avant-core @' > "$WORKSPACE_TMP/requirements-audit.txt"
+# Em dois passos: o sh não tem pipefail, e uma falha do uv export sumiria no pipe.
+uv export --frozen --no-hashes --no-emit-project > "$WORKSPACE_TMP/requirements-lock.txt"
+grep -v '^avant-core @' "$WORKSPACE_TMP/requirements-lock.txt" > "$WORKSPACE_TMP/requirements-audit.txt"
 uvx pip-audit@2.9.0 --no-deps --disable-pip -r "$WORKSPACE_TMP/requirements-audit.txt"
 
 uv run ruff format --check .
