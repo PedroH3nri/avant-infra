@@ -3,8 +3,11 @@
 # clonados na mesma pasta que este repositório.
 #
 #   cp .env.example .env
-#   mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-key.pem avant.localhost
 #   docker compose -f compose/local/docker-compose.yml --env-file .env up -d
+#
+# HTTPS local (opcional, para o Safari ou para reproduzir a VM):
+#   mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-key.pem avant.localhost
+#   docker compose -f compose/local/docker-compose.yml --env-file .env --profile https up -d nginx
 
 name: avant
 
@@ -118,10 +121,12 @@ services:
     build: ../../../avant-web
     depends_on: [api]
 
-  # HTTPS local em https://avant.localhost, com o certificado do mkcert (docs/desenvolvimento.md).
-  # Sem o certificado em .certs/, o nginx não sobe. Por padrão manda para o uvicorn e o Vite
-  # rodando na máquina; no perfil app, AVANT_API_UPSTREAM=api:8000 e AVANT_WEB_UPSTREAM=web:8080.
+  # HTTPS local opcional (perfil https, desligado por padrão) em https://avant.localhost, com o
+  # certificado do mkcert (docs/desenvolvimento.md, "HTTPS local (opcional)"). Sem o certificado
+  # em .certs/, o nginx não sobe. Por padrão manda para o uvicorn e o Vite rodando na máquina; no
+  # perfil app, AVANT_API_UPSTREAM=api:8000 e AVANT_WEB_UPSTREAM=web:8080.
   nginx:
+    profiles: ["https"]
     image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     environment:
       AVANT_API_UPSTREAM: ${AVANT_API_UPSTREAM:-host.docker.internal:8000}
