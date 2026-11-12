@@ -105,7 +105,13 @@ APP_BASE_URL=https://avant.localhost
 MFA_ENCRYPTION_KEY=
 RESEND_API_KEY=
 MAIL_FROM="Avant <onboarding@resend.dev>"
+FORWARDED_ALLOW_IPS=127.0.0.1
 ```
+
+`FORWARDED_ALLOW_IPS` diz de quem a API aceita `X-Forwarded-For` (e com ele o IP de quem chama, que sustenta os limites de tentativas). É obrigatória em todo ambiente, só com IPs ou redes, nunca `*`: sem ela, a API não sobe. O valor é o endereço com que o nginx do compose chega ao uvicorn:
+
+- **macOS (Docker Desktop):** `127.0.0.1`. O Docker Desktop entrega na sua máquina as conexões dos containers como vindas de `127.0.0.1`. Isso quer dizer que outro programa da sua máquina também consegue mandar um `X-Forwarded-For` direto ao uvicorn; o que vem pelo `https://avant.localhost` passa sempre pelo nginx, que troca o cabeçalho.
+- **Linux:** `10.250.0.10`, o IP fixo do nginx (`AVANT_LOCAL_NGINX_IP`). No Linux a conexão chega com o IP do próprio container, sem tradução, e só o nginx é aceito.
 
 `REDIS_URL`, `CELERY_BROKER_URL` e `RESEND_API_KEY` são obrigatórias em todo ambiente: sem qualquer uma delas, a API e o worker não sobem. Mantenha as aspas do `MAIL_FROM` (o `<` quebra o `source` sem elas).
 
@@ -170,10 +176,10 @@ cd avant-api
 uv sync
 set -a; . ../dev.env; set +a
 uv run uvicorn avant_api.main:create_app --factory --reload --host 127.0.0.1 --port 8000 \
-  --proxy-headers --forwarded-allow-ips '*'
+  --proxy-headers
 ```
 
-As opções de proxy são as mesmas da imagem da API: o uvicorn lê o `X-Forwarded-Proto` e o IP que o nginx manda. Como ele escuta só em `127.0.0.1`, só o nginx (e a sua máquina) chega nele.
+O `--proxy-headers` é o mesmo da imagem da API: o uvicorn lê o `X-Forwarded-Proto` e o IP que o nginx manda, mas só de quem estiver no `FORWARDED_ALLOW_IPS` do `dev.env` (passo 5), que ele lê sozinho. Não passe `--forwarded-allow-ips` na linha de comando: ele passa por cima da variável.
 
 Para conferir: https://avant.localhost/api/v1/ready responde `{"status":"ok","checks":{"database":"ok"}}`.
 
@@ -262,7 +268,7 @@ A API e o worker instalam o core por tag (`pyproject.toml`). Para testar uma mud
 cd avant-api
 uv pip install -e ../avant-core
 uv run --no-sync uvicorn avant_api.main:create_app --factory --reload --host 127.0.0.1 --port 8000 \
-  --proxy-headers --forwarded-allow-ips '*'
+  --proxy-headers
 uv run --no-sync pytest
 ```
 
@@ -284,10 +290,13 @@ Use `--no-sync` enquanto estiver testando: um `uv run` sem ele (ou um `uv sync`)
 | O navegador diz que o certificado não é confiável | faltou o `mkcert -install` (passo 3), ou o navegador estava aberto: feche e abra. No Firefox, faltou o `nss` |
 | O nginx não sobe: `cannot load certificate "/etc/nginx/certs/avant.localhost.pem"` | faltou gerar o certificado em `avant-infra/.certs/` (passo 3) |
 | O login responde certo, mas a sessão não fica | o painel foi aberto por `http://`: use `https://avant.localhost` |
+| A API não sobe: `forwarded_allow_ips` "Field required" ou "aceita só endereços ou redes" | falta o `FORWARDED_ALLOW_IPS` no `dev.env`, ou ele está com `*` (passo 5) |
+| Os limites de tentativas pegam todo mundo junto, ou o IP das sessões aparece errado | o `FORWARDED_ALLOW_IPS` não bate com o endereço do nginx: `127.0.0.1` no macOS, `10.250.0.10` no Linux |
+| `docker compose up` diz que a rede `avant_default` "needs to be recreated" | a rede ganhou subnet fixa: `docker compose -f compose/local/docker-compose.yml --env-file .env down` (sem `-v`, os dados ficam) e suba de novo |
 | No Linux, 502 em tudo | o `host.docker.internal` é o `172.17.0.1` do Docker: rode o uvicorn e o Vite com `--host 172.17.0.1` no lugar de `127.0.0.1` |
 | O SSE (avisos em tempo real) não chega | o worker publica no Redis: confira o `REDIS_URL` nos dois lados |
 | Quero começar do zero | `docker compose -f compose/local/docker-compose.yml --env-file .env down -v` apaga os volumes; refaça a partir do passo 4 |
 
 ## Perfil `app` do compose
 
-O `compose/local/docker-compose.yml` tem um perfil `app`, que sobe API, worker, scheduler e painel em containers, atrás do mesmo nginx com HTTPS (com `AVANT_API_UPSTREAM=api:8000` e `AVANT_WEB_UPSTREAM=web:8080` no `.env`). Ele ainda não serve para desenvolver: o build da API e do worker precisa do secret do GitHub e não roda as migrations. Até isso ser corrigido, use o caminho deste guia. A correção está na [issue #16](https://github.com/PedroH3nri/avant-infra/issues/16).
+O `compose/local/docker-compose.yml` tem um perfil `app`, que sobe API, worker, scheduler e painel em containers, atrás do mesmo nginx com HTTPS (com `AVANT_API_UPSTREAM=api:8000` e `AVANT_WEB_UPSTREAM=web:8080` no `.env`). A API em container recebe `FORWARDED_ALLOW_IPS` com o IP fixo do nginx (`AVANT_LOCAL_NGINX_IP`). O build da API e do worker usa um token do GitHub como secret: `GITHUB_TOKEN="$(gh auth token)" docker compose -f compose/local/docker-compose.yml --env-file .env --profile app build`. Ele ainda não serve para desenvolver: não roda as migrations. Até isso ser corrigido, use o caminho deste guia. A correção está na [issue #16](https://github.com/PedroH3nri/avant-infra/issues/16).

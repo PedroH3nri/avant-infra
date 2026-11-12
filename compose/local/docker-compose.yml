@@ -61,9 +61,14 @@ services:
   # Ative com: docker compose --profile app up -d
   api:
     profiles: ["app"]
-    build: ../../../avant-api
+    build:
+      context: ../../../avant-api
+      secrets: [github_token]
     env_file: ../../.env
-    environment: *app-env
+    environment:
+      <<: *app-env
+      # Só o nginx do compose pode mandar X-Forwarded-For (a api recusa "*").
+      FORWARDED_ALLOW_IPS: ${AVANT_LOCAL_NGINX_IP:-10.250.0.10}
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -73,7 +78,9 @@ services:
 
   worker:
     profiles: ["app"]
-    build: ../../../avant-worker
+    build:
+      context: ../../../avant-worker
+      secrets: [github_token]
     command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail,gam", "-l", "info"]
     env_file: ../../.env
     environment: *app-env
@@ -84,7 +91,9 @@ services:
 
   scheduler:
     profiles: ["app"]
-    build: ../../../avant-worker
+    build:
+      context: ../../../avant-worker
+      secrets: [github_token]
     command: ["celery", "-A", "avant_worker.app", "beat", "-l", "info"]
     env_file: ../../.env
     environment: *app-env
@@ -106,6 +115,10 @@ services:
       AVANT_WEB_UPSTREAM: ${AVANT_WEB_UPSTREAM:-host.docker.internal:5173}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # IP fixo: é o único endereço de quem a api aceita X-Forwarded-For (FORWARDED_ALLOW_IPS).
+    networks:
+      default:
+        ipv4_address: ${AVANT_LOCAL_NGINX_IP:-10.250.0.10}
     volumes:
       - ../../nginx/avant.conf:/etc/nginx/templates/default.conf.template:ro
       - ${AVANT_LOCAL_CERTS_DIR:-../../.certs}:/etc/nginx/certs:ro
@@ -113,7 +126,21 @@ services:
       - "127.0.0.1:443:443"
       - "127.0.0.1:80:80"
 
+# Subnet fixa para o nginx ter IP fixo. Se ela conflitar com uma rede da sua máquina (VPN, por
+# exemplo), troque AVANT_LOCAL_SUBNET, AVANT_LOCAL_DYNAMIC_IP_RANGE e AVANT_LOCAL_NGINX_IP no .env.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${AVANT_LOCAL_SUBNET:-10.250.0.0/24}
+          # Os outros containers pegam IP só daqui: o do nginx nunca fica ocupado.
+          ip_range: ${AVANT_LOCAL_DYNAMIC_IP_RANGE:-10.250.0.128/25}
+
 secrets:
+  # Token só de leitura do GitHub para o build da api e do worker (o avant-core é privado):
+  # GITHUB_TOKEN="$(gh auth token)" docker compose ... --profile app build
+  github_token:
+    environment: GITHUB_TOKEN
   postgres-password:
     environment: POSTGRES_SUPERUSER_PASSWORD
   avant-owner-password:

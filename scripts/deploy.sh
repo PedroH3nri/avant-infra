@@ -32,6 +32,8 @@ VM_ENV="$ROOT/compose/$ENV_NAME/vm.env"
 [[ -f "$VM_ENV" ]] || die "faltou $VM_ENV"
 STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 [[ -n "$STATE_DIR" ]] || die "AVANT_STATE_DIR vazio em $VM_ENV"
+SUBNET="$(grep -E '^AVANT_SUBNET=' "$VM_ENV" | cut -d= -f2-)"
+[[ -n "$SUBNET" ]] || die "AVANT_SUBNET vazio em $VM_ENV"
 # Os segredos da VM existem, com permissão 600 (ou 400) e dono avant-deploy; a chave do GAM
 # segue a mesma regra quando já estiver na VM.
 SECRET_FILES=("$STATE_DIR/compose.env" "$STATE_DIR/app.env")
@@ -126,8 +128,10 @@ wait_healthy() {
   die "$service não ficou saudável em ${HEALTH_TIMEOUT}s (estados: ${states:-nenhum})"
 }
 
-# Sobe Postgres, RabbitMQ, Redis e nginx, criando os upstreams que faltarem.
+# Sobe Postgres, RabbitMQ, Redis e nginx, criando os upstreams que faltarem. Antes, confere a
+# subnet fixa da rede do stack (sem conflito com a VM, ou igual à da rede que já existe).
 ensure_base() {
+  "$ROOT/scripts/conferir-subnet.sh" "$SUBNET" "avant-$ENV_NAME"
   compose up -d postgres rabbitmq redis
   for colored_service in api web; do
     [[ -f "$STATE_DIR/upstreams/$colored_service.conf" ]] || write_upstream "$colored_service" "${ACTIVE:-blue}"
