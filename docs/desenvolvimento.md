@@ -1,6 +1,6 @@
 # Rodar o Avant em modo de desenvolvimento
 
-Este guia sobe o Avant inteiro na sua máquina: Postgres, RabbitMQ, Redis e o nginx com HTTPS pelo Docker, e API, worker e painel direto no terminal, com recarga automática. Leva uns 15 minutos na primeira vez.
+Este guia sobe o Avant inteiro na sua máquina: Postgres, RabbitMQ, Redis, Mailpit e o nginx com HTTPS pelo Docker, e API, worker e painel direto no terminal, com recarga automática. Leva uns 15 minutos na primeira vez.
 
 O Avant local roda em HTTPS, como staging e produção: os cookies de sessão são sempre `Secure` e `__Host-`, e sem HTTPS o login não funciona.
 
@@ -10,14 +10,15 @@ navegador → https://avant.localhost  (nginx do compose, certificado do mkcert)
                └─ /api → http://127.0.0.1:8000  (uvicorn, avant-api)
                             ├─ Postgres :5432  (papel avant_app, com RLS)
                             ├─ Redis    :6379  (limites, travas, eventos do SSE)
-                            └─ RabbitMQ :5672 ─→ worker e scheduler (avant-worker)
+                            ├─ RabbitMQ :5672 ─→ worker e scheduler (avant-worker)
+                            └─ Mailpit  :1025  (e-mails, vistos em http://localhost:8025)
 ```
 
 ## 1. O que instalar
 
 | Ferramenta | Versão | Para quê |
 | --- | --- | --- |
-| Docker com Compose | 24 ou mais | Postgres 16, RabbitMQ 3.13, Redis 7 e o nginx com HTTPS |
+| Docker com Compose | 24 ou mais | Postgres 16, RabbitMQ 3.13, Redis 7, Mailpit e o nginx com HTTPS |
 | [mkcert](https://github.com/FiloSottile/mkcert) | 1.4 ou mais | certificado local confiável para `https://avant.localhost` |
 | [uv](https://docs.astral.sh/uv/) | 0.5 ou mais | Python 3.12 (o uv baixa sozinho) e dependências do core, da API e do worker |
 | Node.js e pnpm | Node 24, pnpm 10.28 (o `packageManager` do avant-web) | painel Vue |
@@ -62,7 +63,7 @@ mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-ke
 - Os navegadores resolvem `*.localhost` sozinhos. Para o `curl` e outras ferramentas, se `avant.localhost` não resolver, ponha `127.0.0.1 avant.localhost` no `/etc/hosts`.
 - Nunca compartilhe o `rootCA-key.pem` (fica em `mkcert -CAROOT`): quem tem essa chave emite certificados que a sua máquina aceita. Para desfazer: `mkcert -uninstall`.
 
-## 4. Subir Postgres, RabbitMQ, Redis e o nginx
+## 4. Subir Postgres, RabbitMQ, Redis, Mailpit e o nginx
 
 ```bash
 cp .env.example .env
@@ -79,7 +80,8 @@ RABBITMQ_PASSWORD=dev_rabbit
 
 ```bash
 docker compose -f compose/local/docker-compose.yml --env-file .env up -d
-docker compose -f compose/local/docker-compose.yml --env-file .env ps   # os três "healthy"
+# Postgres, RabbitMQ, Redis e Mailpit "healthy"; o nginx "Up".
+docker compose -f compose/local/docker-compose.yml --env-file .env ps
 ```
 
 Na primeira subida, o `postgres/init/01-roles.sh` cria o banco `avant` e os dois papéis:
@@ -88,6 +90,8 @@ Na primeira subida, o `postgres/init/01-roles.sh` cria o banco `avant` e os dois
 - `avant_app`, usado pela API e pelo worker, sem BYPASSRLS. É ele que faz o Row Level Security valer, então nunca rode a aplicação como `avant_owner` ou `postgres`.
 
 O painel do RabbitMQ fica em http://localhost:15672 (usuário `avant`).
+
+O Mailpit recebe por SMTP em `localhost:1025` e mostra os e-mails em http://localhost:8025. As duas portas ficam só no loopback.
 
 O nginx escuta em `127.0.0.1:443` (e o `:80` só redireciona para o HTTPS). Sem o certificado do passo 3 ele não sobe. Ele repassa `X-Forwarded-Proto https` e o IP de quem chamou (`$remote_addr`) e tem os mesmos limites por IP e o mesmo log sem tokens das VMs. Se a porta 443 já estiver em uso na sua máquina, libere-a: o endereço do Avant local é sempre `https://avant.localhost`.
 
@@ -103,8 +107,9 @@ REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=amqp://avant:dev_rabbit@localhost:5672//
 APP_BASE_URL=https://avant.localhost
 MFA_ENCRYPTION_KEY=
-RESEND_API_KEY=
-MAIL_FROM="Avant <onboarding@resend.dev>"
+MAIL_TRANSPORT=smtp
+SMTP_URL=smtp://localhost:1025
+MAIL_FROM="Avant <avant@localhost>"
 FORWARDED_ALLOW_IPS=127.0.0.1
 ```
 
@@ -113,15 +118,9 @@ FORWARDED_ALLOW_IPS=127.0.0.1
 - **macOS (Docker Desktop):** `127.0.0.1`. O Docker Desktop entrega na sua máquina as conexões dos containers como vindas de `127.0.0.1`. Isso quer dizer que outro programa da sua máquina também consegue mandar um `X-Forwarded-For` direto ao uvicorn; o que vem pelo `https://avant.localhost` passa sempre pelo nginx, que troca o cabeçalho.
 - **Linux:** `10.250.0.10`, o IP fixo do nginx (`AVANT_LOCAL_NGINX_IP`). No Linux a conexão chega com o IP do próprio container, sem tradução, e só o nginx é aceito.
 
-`REDIS_URL`, `CELERY_BROKER_URL` e `RESEND_API_KEY` são obrigatórias em todo ambiente: sem qualquer uma delas, a API e o worker não sobem. Mantenha as aspas do `MAIL_FROM` (o `<` quebra o `source` sem elas).
+`REDIS_URL`, `CELERY_BROKER_URL` e `MAIL_TRANSPORT` são obrigatórias em todo ambiente: sem qualquer uma delas, a API e o worker não sobem. Mantenha as aspas do `MAIL_FROM` (o `<` quebra o `source` sem elas).
 
-A `RESEND_API_KEY` é sua e nunca vai para um repositório:
-
-1. Crie uma conta grátis em https://resend.com com o seu e-mail.
-2. Em **API Keys**, crie uma chave com permissão **Sending access** e cole no `dev.env`.
-3. Deixe o remetente do sandbox, `onboarding@resend.dev`. Com ele, o Resend só entrega no e-mail da sua conta: convide esse endereço nos testes. Os e-mails enviados (com o link do convite ou da nova senha) também aparecem em **Emails**, no painel do Resend.
-
-Nenhum link com token vai para o log, em nenhum ambiente.
+**E-mail.** `MAIL_TRANSPORT` não tem padrão: `smtp` (exige `SMTP_URL`) ou `resend` (exige `RESEND_API_KEY`). No desenvolvimento é `smtp`, para o Mailpit que sobe no passo 4: todo e-mail que a API e o worker mandam (convite, nova senha, avisos) fica na caixa dele, em http://localhost:8025, para qualquer endereço, e nada sai para a internet. Não precisa de conta no Resend. Staging e produção usam `resend` (ver o README, "Arquivos na VM"). Nenhum link com token vai para o log, em nenhum ambiente.
 
 Gere a `MFA_ENCRYPTION_KEY` uma vez e cole no arquivo. Se trocar a chave, o 2FA de quem já configurou para de funcionar:
 
@@ -218,7 +217,7 @@ O `--host 127.0.0.1` é preciso porque o Vite escuta em `::1` no macOS e o Docke
 
 1. Abra https://avant.localhost/entrar e entre com o e-mail e a senha do passo 6.
 2. A equipe Groone precisa de 2FA: o painel pede para configurar logo no primeiro login. Use qualquer app autenticador (Google Authenticator, 1Password etc.) e guarde os códigos de recuperação.
-3. Em `/interno`, cadastre um cliente de teste com o e-mail da sua conta do Resend (o sandbox só entrega nele). O convite de dono chega por e-mail e também aparece em **Emails**, no painel do Resend. Abra o link numa janela anônima para criar a conta e a Empresa do cliente.
+3. Em `/interno`, cadastre um cliente de teste com qualquer e-mail. O convite de dono aparece no Mailpit, em http://localhost:8025. Abra o link numa janela anônima para criar a conta e a Empresa do cliente.
 4. Na Empresa do cliente você testa equipe, papéis, convites, networks, sites e chaves de API.
 5. Com os dados de demonstração, troque para "Portal Notícias (demo)" no seletor de Empresa e as telas já vêm preenchidas.
 
@@ -281,8 +280,8 @@ Use `--no-sync` enquanto estiver testando: um `uv run` sem ele (ou um `uv sync`)
 | `uv sync` da API ou do worker falha ao baixar o `avant-core` | o git não autentica no GitHub: `gh auth login` |
 | `relation "companies" does not exist` (no bootstrap ou na API) | as migrations não rodaram nesse banco: `uv run alembic upgrade head` no avant-core (passo 6). O Postgres do Docker cria só o banco vazio e os papéis |
 | A API não sobe: `database_url` ou `mfa_encryption_key` "Field required" | o `dev.env` não foi carregado neste terminal |
-| A API ou o worker não sobe: `redis_url`, `celery_broker_url` ou `resend_api_key` "Field required" (ou "é obrigatória em todo ambiente") | falta a variável no `dev.env`; as três valem em todo ambiente (passo 5) |
-| O e-mail do convite não chega | o sandbox do Resend só entrega no e-mail da sua conta; veja o envio em **Emails**, no painel do Resend |
+| A API ou o worker não sobe: `redis_url`, `celery_broker_url`, `mail_transport` ou `smtp_url` "Field required" (ou "é obrigatória") | falta a variável no `dev.env` (passo 5) |
+| O e-mail do convite não aparece no Mailpit | o Mailpit não está de pé (`docker compose ... ps`), ou o `dev.env` não tem `MAIL_TRANSPORT=smtp` e `SMTP_URL=smtp://localhost:1025`. O convite da API vai pela fila `mail`: confira também o worker |
 | Login responde 403 `mfa_required` em tudo | a equipe Groone precisa configurar o 2FA; o painel leva para essa tela |
 | Tabelas aparecem vazias ou `permission denied` | rodou a aplicação como `avant_owner`/`postgres`, ou criou um banco sem os privilégios do passo 11 |
 | O painel mostra erro de rede em toda chamada | a API não está em `127.0.0.1:8000` |
