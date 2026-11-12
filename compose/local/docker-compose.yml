@@ -3,17 +3,21 @@
 # clonados na mesma pasta que este repositório.
 #
 #   cp .env.example .env
-#   mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-key.pem avant.localhost
 #   docker compose -f compose/local/docker-compose.yml --env-file .env up -d
+#
+# HTTPS local (opcional, para o Safari ou para reproduzir a VM):
+#   mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-key.pem avant.localhost
+#   docker compose -f compose/local/docker-compose.yml --env-file .env --profile https up -d nginx
 
 name: avant
 
-# A api, o worker e o scheduler não sobem sem REDIS_URL, CELERY_BROKER_URL e RESEND_API_KEY
-# (em todo ambiente). As duas URLs são montadas aqui; a RESEND_API_KEY vem do .env (chave do
-# sandbox do Resend no desenvolvimento, ver docs/desenvolvimento.md).
+# A api, o worker e o scheduler não sobem sem REDIS_URL, CELERY_BROKER_URL e o transporte de
+# e-mail (MAIL_TRANSPORT e a configuração dele). As URLs dos containers são montadas aqui; o
+# MAIL_TRANSPORT (smtp no local, para o Mailpit) vem do .env.
 x-app-env: &app-env
   CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-avant}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
   REDIS_URL: redis://redis:6379/0
+  SMTP_URL: smtp://mailpit:1025
 
 services:
   postgres:
@@ -54,6 +58,18 @@ services:
       - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Caixa de e-mail local: a api e o worker enviam por SMTP (MAIL_TRANSPORT=smtp) e os e-mails
+  # (convite, nova senha, avisos) aparecem em http://localhost:8025. Nada sai para a internet.
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
       retries: 10
 
@@ -105,10 +121,12 @@ services:
     build: ../../../avant-web
     depends_on: [api]
 
-  # HTTPS local em https://avant.localhost, com o certificado do mkcert (docs/desenvolvimento.md).
-  # Sem o certificado em .certs/, o nginx não sobe. Por padrão manda para o uvicorn e o Vite
-  # rodando na máquina; no perfil app, AVANT_API_UPSTREAM=api:8000 e AVANT_WEB_UPSTREAM=web:8080.
+  # HTTPS local opcional (perfil https, desligado por padrão) em https://avant.localhost, com o
+  # certificado do mkcert (docs/desenvolvimento.md, "HTTPS local (opcional)"). Sem o certificado
+  # em .certs/, o nginx não sobe. Por padrão manda para o uvicorn e o Vite rodando na máquina; no
+  # perfil app, AVANT_API_UPSTREAM=api:8000 e AVANT_WEB_UPSTREAM=web:8080.
   nginx:
+    profiles: ["https"]
     image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     environment:
       AVANT_API_UPSTREAM: ${AVANT_API_UPSTREAM:-host.docker.internal:8000}
