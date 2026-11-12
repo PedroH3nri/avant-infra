@@ -2,6 +2,7 @@
 *.env
 !.env.example
 secrets/
+.certs/
 *.json.key
 gam-service-account.json
 !compose/*/vm.env
