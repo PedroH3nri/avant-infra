@@ -8,12 +8,13 @@
 
 name: avant
 
-# A api, o worker e o scheduler não sobem sem REDIS_URL, CELERY_BROKER_URL e RESEND_API_KEY
-# (em todo ambiente). As duas URLs são montadas aqui; a RESEND_API_KEY vem do .env (chave do
-# sandbox do Resend no desenvolvimento, ver docs/desenvolvimento.md).
+# A api, o worker e o scheduler não sobem sem REDIS_URL, CELERY_BROKER_URL e o transporte de
+# e-mail (MAIL_TRANSPORT e a configuração dele). As URLs dos containers são montadas aqui; o
+# MAIL_TRANSPORT (smtp no local, para o Mailpit) vem do .env.
 x-app-env: &app-env
   CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-avant}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
   REDIS_URL: redis://redis:6379/0
+  SMTP_URL: smtp://mailpit:1025
 
 services:
   postgres:
@@ -54,6 +55,18 @@ services:
       - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Caixa de e-mail local: a api e o worker enviam por SMTP (MAIL_TRANSPORT=smtp) e os e-mails
+  # (convite, nova senha, avisos) aparecem em http://localhost:8025. Nada sai para a internet.
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
       retries: 10
 

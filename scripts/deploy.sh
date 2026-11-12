@@ -50,7 +50,8 @@ effective_value() {
 for password in POSTGRES_SUPERUSER_PASSWORD AVANT_OWNER_PASSWORD AVANT_APP_PASSWORD; do
   [[ -n "$(effective_value "$password" "$STATE_DIR/compose.env")" ]] || die "defina $password em $STATE_DIR/compose.env"
 done
-# A api e o worker não sobem sem a chave do Resend (em todo ambiente): falha antes de trocar a cor.
+# Nas VMs o e-mail sai pelo Resend: MAIL_TRANSPORT=resend e a chave, ou o deploy para antes de trocar a cor.
+[[ "$(effective_value MAIL_TRANSPORT "$STATE_DIR/app.env")" == resend ]] || die "defina MAIL_TRANSPORT=resend em $STATE_DIR/app.env"
 [[ -n "$(effective_value RESEND_API_KEY "$STATE_DIR/app.env")" ]] || die "defina RESEND_API_KEY em $STATE_DIR/app.env"
 RELEASE="$STATE_DIR/release.env"
 mkdir -p "$STATE_DIR/upstreams" "$STATE_DIR/geoip"
