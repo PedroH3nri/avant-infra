@@ -20,6 +20,8 @@
 name: avant-${AVANT_ENV:?defina AVANT_ENV}
 
 x-env: &env
+  # A api e o worker não leem mais o AVANT_ENV, mas o avant-seed-demo do core (instalado na
+  # imagem da api) só se recusa a rodar quando ele não é "local": sem ele, rodaria aqui.
   AVANT_ENV: ${AVANT_ENV}
   APP_BASE_URL: ${APP_BASE_URL:?defina APP_BASE_URL}
   DATABASE_URL: postgresql+psycopg://avant_app:${AVANT_APP_PASSWORD:?defina no compose.env}@postgres:5432/${POSTGRES_DB:-avant}
