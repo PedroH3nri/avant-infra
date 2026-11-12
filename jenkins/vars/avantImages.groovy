@@ -7,3 +7,8 @@ String uv() {
 String node() {
   return 'node:24-alpine'
 }
+
+/** Imagem do gitleaks, que procura segredos no histórico do repositório. */
+String gitleaks() {
+  return 'zricethezav/gitleaks:v8.30.1'
+}

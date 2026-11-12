@@ -10,7 +10,8 @@
 #
 # <ambiente> é staging ou production; as configurações vêm de compose/<ambiente>/vm.env.
 # Na VM precisam existir, em AVANT_STATE_DIR: compose.env, app.env e
-# gam-service-account.json (ver README). O release.env e os upstreams são escritos aqui.
+# gam-service-account.json (ver README), com permissão 600 (ou 400) e dono avant-deploy
+# (AVANT_DEPLOY_USER muda o dono esperado). O release.env e os upstreams são escritos aqui.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,9 +32,12 @@ VM_ENV="$ROOT/compose/$ENV_NAME/vm.env"
 [[ -f "$VM_ENV" ]] || die "faltou $VM_ENV"
 STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 [[ -n "$STATE_DIR" ]] || die "AVANT_STATE_DIR vazio em $VM_ENV"
-for secret_file in compose.env app.env; do
-  [[ -f "$STATE_DIR/$secret_file" ]] || die "faltou $STATE_DIR/$secret_file (segredos da VM)"
-done
+# Os segredos da VM existem, com permissão 600 (ou 400) e dono avant-deploy; a chave do GAM
+# segue a mesma regra quando já estiver na VM.
+SECRET_FILES=("$STATE_DIR/compose.env" "$STATE_DIR/app.env")
+[[ -e "$STATE_DIR/gam-service-account.json" ]] && SECRET_FILES+=("$STATE_DIR/gam-service-account.json")
+"$ROOT/scripts/conferir-segredos.sh" "${AVANT_DEPLOY_USER:-avant-deploy}" "${SECRET_FILES[@]}" \
+  || die "segredos da VM fora do padrão (ver README, \"Arquivos na VM\")"
 # Lê o valor que o compose vai usar de uma variável do arquivo (a última linha, sem aspas nem espaços).
 effective_value() {
   local variable="$1" env_file="$2"

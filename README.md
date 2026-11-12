@@ -51,7 +51,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
 
 ### Arquivos na VM
 
-Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permissão `600` nos arquivos):
+Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permissão `600` ou `400` nos arquivos). O `deploy.sh` confere isso em `compose.env`, `app.env` e `gam-service-account.json` com o `scripts/conferir-segredos.sh` e para se algum estiver fora:
 
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
