@@ -96,4 +96,4 @@ Em cada VM (staging na pequena, produção na principal), uma vez:
    ```
 
    Na produção: `.../production/scripts/remote-deploy.sh production main`. Com isso a chave só consegue pedir `api|web|worker <tag>` ou `backup` daquele ambiente; qualquer outro comando é recusado.
-5. Depois do primeiro `scripts/deploy.sh <ambiente> up`, o firewall de saída dos containers ([`README.md`](../README.md#firewall-de-saída-uma-vez-por-vm)).
+5. Antes do primeiro `scripts/deploy.sh <ambiente> up`, o firewall de saída dos containers ([`README.md`](../README.md#firewall-de-saída-uma-vez-por-vm)): o `deploy.sh` não sobe nada sem ele.

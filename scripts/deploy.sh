@@ -10,8 +10,10 @@
 #
 # <ambiente> é staging ou production; as configurações vêm de compose/<ambiente>/vm.env.
 # Na VM precisam existir, em AVANT_STATE_DIR: compose.env, app.env e
-# gam-service-account.json (ver README), com permissão 600 (ou 400) e dono avant-deploy
-# (AVANT_DEPLOY_USER muda o dono esperado). O release.env e os upstreams são escritos aqui.
+# gam-service-account.json (ver README), com permissão 600 (ou 400): os dois .env com dono
+# avant-deploy e a chave do GAM com dono 10001 (o usuário do worker-gam, que a lê pelo bind mount
+# do secret). O firewall de saída precisa estar ligado na bridge do vm.env (AVANT_BRIDGE).
+# O release.env e os upstreams são escritos aqui.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,12 +36,21 @@ STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 [[ -n "$STATE_DIR" ]] || die "AVANT_STATE_DIR vazio em $VM_ENV"
 SUBNET="$(grep -E '^AVANT_SUBNET=' "$VM_ENV" | cut -d= -f2-)"
 [[ -n "$SUBNET" ]] || die "AVANT_SUBNET vazio em $VM_ENV"
-# Os segredos da VM existem, com permissão 600 (ou 400) e dono avant-deploy; a chave do GAM
-# segue a mesma regra quando já estiver na VM.
-SECRET_FILES=("$STATE_DIR/compose.env" "$STATE_DIR/app.env")
-[[ -e "$STATE_DIR/gam-service-account.json" ]] && SECRET_FILES+=("$STATE_DIR/gam-service-account.json")
-"$ROOT/scripts/conferir-segredos.sh" "${AVANT_DEPLOY_USER:-avant-deploy}" "${SECRET_FILES[@]}" \
+BRIDGE="$(grep -E '^AVANT_BRIDGE=' "$VM_ENV" | cut -d= -f2-)"
+[[ -n "$BRIDGE" ]] || die "AVANT_BRIDGE vazio em $VM_ENV"
+DEPLOY_OWNER=avant-deploy
+GAM_KEY_OWNER=10001
+# Os segredos da VM existem, com permissão 600 (ou 400) e o dono certo, arquivo por arquivo.
+"$ROOT/scripts/conferir-segredos.sh" "$DEPLOY_OWNER" "$STATE_DIR/compose.env" "$STATE_DIR/app.env" \
   || die "segredos da VM fora do padrão (ver README, \"Arquivos na VM\")"
+if [[ -e "$STATE_DIR/gam-service-account.json" ]]; then
+  "$ROOT/scripts/conferir-segredos.sh" "$GAM_KEY_OWNER" "$STATE_DIR/gam-service-account.json" \
+    || die "a chave do GAM precisa de dono $GAM_KEY_OWNER e permissão 400 (ver README, \"Arquivos na VM\")"
+fi
+# O firewall de saída grava a bridge em que aplicou as regras; sem ele, ou noutra bridge, para.
+FIREWALL_MARKER="/run/avant-firewall/$ENV_NAME"
+[[ "$ACTION" == status || "$(cat "$FIREWALL_MARKER" 2>/dev/null || true)" == "$BRIDGE" ]] \
+  || die "firewall de saída desligado ou fora da bridge $BRIDGE: systemctl restart avant-firewall-$ENV_NAME (README)"
 # Lê o valor que o compose vai usar de uma variável do arquivo (a última linha, sem aspas nem espaços).
 effective_value() {
   local variable="$1" env_file="$2"
@@ -133,6 +144,11 @@ wait_healthy() {
 # subnet fixa da rede do stack (sem conflito com a VM, ou igual à da rede que já existe).
 ensure_base() {
   "$ROOT/scripts/conferir-subnet.sh" "$SUBNET" "avant-$ENV_NAME"
+  local current_bridge
+  if current_bridge="$(docker network inspect -f '{{index .Options "com.docker.network.bridge.name"}}' "avant-$ENV_NAME" 2>/dev/null)"; then
+    [[ "$current_bridge" == "$BRIDGE" ]] \
+      || die "a rede avant-$ENV_NAME usa a bridge '$current_bridge', não $BRIDGE: recrie a rede (README, \"Rede com subnet fixa\")"
+  fi
   compose up -d postgres rabbitmq redis
   for colored_service in api web; do
     [[ -f "$STATE_DIR/upstreams/$colored_service.conf" ]] || write_upstream "$colored_service" "${ACTIVE:-blue}"

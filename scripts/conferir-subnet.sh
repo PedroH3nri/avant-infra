@@ -9,6 +9,9 @@
 # outra rede Docker.
 set -euo pipefail
 
+MIN_PREFIX=8
+MAX_PREFIX=30
+
 # Mostra o erro e encerra.
 die() { echo "conferir-subnet: $*" >&2; exit 1; }
 
@@ -56,7 +59,10 @@ docker_networks() {
 [[ $# -eq 2 ]] || die "uso: $0 <subnet> <rede>"
 SUBNET="$1"
 NETWORK="$2"
-[[ "$SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$ ]] || die "subnet inválida: $SUBNET"
+[[ "$SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/([0-9]{1,2})$ ]] || die "subnet inválida: $SUBNET"
+SUBNET_PREFIX="${BASH_REMATCH[2]}"
+(( 10#$SUBNET_PREFIX >= MIN_PREFIX && 10#$SUBNET_PREFIX <= MAX_PREFIX )) \
+  || die "subnet com prefixo /$SUBNET_PREFIX: use de /$MIN_PREFIX a /$MAX_PREFIX"
 
 if CURRENT="$(docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}' "$NETWORK" 2>/dev/null)"; then
   [[ " $CURRENT " == *" $SUBNET "* ]] \
