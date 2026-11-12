@@ -10,6 +10,7 @@ export npm_config_store_dir="$WORKSPACE_TMP/pnpm-store"
 mkdir -p "$HOME"
 
 corepack pnpm install --frozen-lockfile
+corepack pnpm audit --prod --audit-level moderate
 corepack pnpm lint
 corepack pnpm clean-code
 corepack pnpm typecheck

@@ -3,9 +3,17 @@
 # clonados na mesma pasta que este repositório.
 #
 #   cp .env.example .env
+#   mkcert -cert-file .certs/avant.localhost.pem -key-file .certs/avant.localhost-key.pem avant.localhost
 #   docker compose -f compose/local/docker-compose.yml --env-file .env up -d
 
 name: avant
+
+# A api, o worker e o scheduler não sobem sem REDIS_URL, CELERY_BROKER_URL e RESEND_API_KEY
+# (em todo ambiente). As duas URLs são montadas aqui; a RESEND_API_KEY vem do .env (chave do
+# sandbox do Resend no desenvolvimento, ver docs/desenvolvimento.md).
+x-app-env: &app-env
+  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-avant}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
+  REDIS_URL: redis://redis:6379/0
 
 services:
   postgres:
@@ -53,20 +61,29 @@ services:
   # Ative com: docker compose --profile app up -d
   api:
     profiles: ["app"]
-    build: ../../../avant-api
+    build:
+      context: ../../../avant-api
+      secrets: [github_token]
     env_file: ../../.env
+    environment:
+      <<: *app-env
+      # Só o nginx do compose pode mandar X-Forwarded-For (a api recusa "*").
+      FORWARDED_ALLOW_IPS: ${AVANT_LOCAL_NGINX_IP:-10.250.0.10}
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       redis: { condition: service_healthy }
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
   worker:
     profiles: ["app"]
-    build: ../../../avant-worker
+    build:
+      context: ../../../avant-worker
+      secrets: [github_token]
     command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail,gam", "-l", "info"]
     env_file: ../../.env
+    environment: *app-env
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -74,9 +91,12 @@ services:
 
   scheduler:
     profiles: ["app"]
-    build: ../../../avant-worker
+    build:
+      context: ../../../avant-worker
+      secrets: [github_token]
     command: ["celery", "-A", "avant_worker.app", "beat", "-l", "info"]
     env_file: ../../.env
+    environment: *app-env
     depends_on:
       rabbitmq: { condition: service_healthy }
 
@@ -85,16 +105,42 @@ services:
     build: ../../../avant-web
     depends_on: [api]
 
+  # HTTPS local em https://avant.localhost, com o certificado do mkcert (docs/desenvolvimento.md).
+  # Sem o certificado em .certs/, o nginx não sobe. Por padrão manda para o uvicorn e o Vite
+  # rodando na máquina; no perfil app, AVANT_API_UPSTREAM=api:8000 e AVANT_WEB_UPSTREAM=web:8080.
   nginx:
-    profiles: ["app"]
     image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    environment:
+      AVANT_API_UPSTREAM: ${AVANT_API_UPSTREAM:-host.docker.internal:8000}
+      AVANT_WEB_UPSTREAM: ${AVANT_WEB_UPSTREAM:-host.docker.internal:5173}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # IP fixo: é o único endereço de quem a api aceita X-Forwarded-For (FORWARDED_ALLOW_IPS).
+    networks:
+      default:
+        ipv4_address: ${AVANT_LOCAL_NGINX_IP:-10.250.0.10}
     volumes:
-      - ../../nginx/avant.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on: [api, web]
+      - ../../nginx/avant.conf:/etc/nginx/templates/default.conf.template:ro
+      - ${AVANT_LOCAL_CERTS_DIR:-../../.certs}:/etc/nginx/certs:ro
     ports:
-      - "8080:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:80:80"
+
+# Subnet fixa para o nginx ter IP fixo. Se ela conflitar com uma rede da sua máquina (VPN, por
+# exemplo), troque AVANT_LOCAL_SUBNET, AVANT_LOCAL_DYNAMIC_IP_RANGE e AVANT_LOCAL_NGINX_IP no .env.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${AVANT_LOCAL_SUBNET:-10.250.0.0/24}
+          # Os outros containers pegam IP só daqui: o do nginx nunca fica ocupado.
+          ip_range: ${AVANT_LOCAL_DYNAMIC_IP_RANGE:-10.250.0.128/25}
 
 secrets:
+  # Token só de leitura do GitHub para o build da api e do worker (o avant-core é privado):
+  # GITHUB_TOKEN="$(gh auth token)" docker compose ... --profile app build
+  github_token:
+    environment: GITHUB_TOKEN
   postgres-password:
     environment: POSTGRES_SUPERUSER_PASSWORD
   avant-owner-password:

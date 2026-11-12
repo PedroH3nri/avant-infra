@@ -37,6 +37,7 @@ def call(Map config) {
         when { not { branch 'main' } }
         steps {
           script {
+            avantSecretScan()
             if (checks == 'python') {
               avantPythonChecks()
             } else {

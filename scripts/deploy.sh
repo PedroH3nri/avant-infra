@@ -10,7 +10,8 @@
 #
 # <ambiente> é staging ou production; as configurações vêm de compose/<ambiente>/vm.env.
 # Na VM precisam existir, em AVANT_STATE_DIR: compose.env, app.env e
-# gam-service-account.json (ver README). O release.env e os upstreams são escritos aqui.
+# gam-service-account.json (ver README), com permissão 600 (ou 400) e dono avant-deploy
+# (AVANT_DEPLOY_USER muda o dono esperado). O release.env e os upstreams são escritos aqui.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,18 +32,26 @@ VM_ENV="$ROOT/compose/$ENV_NAME/vm.env"
 [[ -f "$VM_ENV" ]] || die "faltou $VM_ENV"
 STATE_DIR="$(grep -E '^AVANT_STATE_DIR=' "$VM_ENV" | cut -d= -f2-)"
 [[ -n "$STATE_DIR" ]] || die "AVANT_STATE_DIR vazio em $VM_ENV"
-for secret_file in compose.env app.env; do
-  [[ -f "$STATE_DIR/$secret_file" ]] || die "faltou $STATE_DIR/$secret_file (segredos da VM)"
-done
-# As senhas do Postgres viram secrets do compose, onde o :? não vale: a checagem fica aqui, com o
-# valor que o compose vai ler (a última linha da variável, sem aspas nem espaços).
+SUBNET="$(grep -E '^AVANT_SUBNET=' "$VM_ENV" | cut -d= -f2-)"
+[[ -n "$SUBNET" ]] || die "AVANT_SUBNET vazio em $VM_ENV"
+# Os segredos da VM existem, com permissão 600 (ou 400) e dono avant-deploy; a chave do GAM
+# segue a mesma regra quando já estiver na VM.
+SECRET_FILES=("$STATE_DIR/compose.env" "$STATE_DIR/app.env")
+[[ -e "$STATE_DIR/gam-service-account.json" ]] && SECRET_FILES+=("$STATE_DIR/gam-service-account.json")
+"$ROOT/scripts/conferir-segredos.sh" "${AVANT_DEPLOY_USER:-avant-deploy}" "${SECRET_FILES[@]}" \
+  || die "segredos da VM fora do padrão (ver README, \"Arquivos na VM\")"
+# Lê o valor que o compose vai usar de uma variável do arquivo (a última linha, sem aspas nem espaços).
 effective_value() {
-  grep -E "^(export[[:space:]]+)?$1=" "$STATE_DIR/compose.env" | tail -n 1 | cut -d= -f2- \
+  local variable="$1" env_file="$2"
+  grep -E "^(export[[:space:]]+)?$variable=" "$env_file" | tail -n 1 | cut -d= -f2- \
     | sed -E "s/^[[:space:]]*['\"]?//; s/['\"]?[[:space:]]*\$//"
 }
+# As senhas do Postgres viram secrets do compose, onde o :? não vale: a checagem fica aqui.
 for password in POSTGRES_SUPERUSER_PASSWORD AVANT_OWNER_PASSWORD AVANT_APP_PASSWORD; do
-  [[ -n "$(effective_value "$password")" ]] || die "defina $password em $STATE_DIR/compose.env"
+  [[ -n "$(effective_value "$password" "$STATE_DIR/compose.env")" ]] || die "defina $password em $STATE_DIR/compose.env"
 done
+# A api e o worker não sobem sem a chave do Resend (em todo ambiente): falha antes de trocar a cor.
+[[ -n "$(effective_value RESEND_API_KEY "$STATE_DIR/app.env")" ]] || die "defina RESEND_API_KEY em $STATE_DIR/app.env"
 RELEASE="$STATE_DIR/release.env"
 mkdir -p "$STATE_DIR/upstreams" "$STATE_DIR/geoip"
 touch "$RELEASE"
@@ -119,8 +128,10 @@ wait_healthy() {
   die "$service não ficou saudável em ${HEALTH_TIMEOUT}s (estados: ${states:-nenhum})"
 }
 
-# Sobe Postgres, RabbitMQ, Redis e nginx, criando os upstreams que faltarem.
+# Sobe Postgres, RabbitMQ, Redis e nginx, criando os upstreams que faltarem. Antes, confere a
+# subnet fixa da rede do stack (sem conflito com a VM, ou igual à da rede que já existe).
 ensure_base() {
+  "$ROOT/scripts/conferir-subnet.sh" "$SUBNET" "avant-$ENV_NAME"
   compose up -d postgres rabbitmq redis
   for colored_service in api web; do
     [[ -f "$STATE_DIR/upstreams/$colored_service.conf" ]] || write_upstream "$colored_service" "${ACTIVE:-blue}"

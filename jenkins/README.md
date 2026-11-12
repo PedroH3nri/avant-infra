@@ -22,7 +22,7 @@ main do avant-infra precisa ter a biblioteca em dia.
 | `develop` | checagens → imagem `ghcr.io/pedroh3nri/avant-<serviço>` com as tags `<commit>`, `tree-<árvore>` e `develop` → deploy em staging |
 | `main` | sem rebuild: acha a imagem do develop com a mesma árvore de código (`tree-...`), dá as tags `<commit>` e `main` → backup do Postgres → deploy em produção |
 
-- As checagens são as mesmas do GitHub Actions. Nos repositórios Python sobem um Postgres 16 e um Redis temporários numa rede Docker só do build, com os papéis `avant_owner` e `avant_app` como em `postgres/init/01-roles.sh`.
+- As checagens são as mesmas do GitHub Actions: gitleaks no histórico inteiro, auditoria das dependências (`pip-audit` sobre o `uv.lock`, `pnpm audit --prod --audit-level moderate`) e depois lint, tipos, clean code e testes. Nos repositórios Python sobem um Postgres 16 e um Redis temporários numa rede Docker só do build, com os papéis `avant_owner` e `avant_app` como em `postgres/init/01-roles.sh`.
 - O main só publica imagem que o develop já construiu e testou. Se o main tiver um código diferente de qualquer commit do develop (um hotfix direto no main, por exemplo), o build para e pede o merge do develop no main.
 - O backup antes da produção chama `scripts/backup.sh production` na VM. Enquanto ele não existir ([#7](https://github.com/PedroH3nri/avant-infra/issues/7)), o deploy de produção para nessa etapa, de propósito.
 - Cada serviço faz o próprio deploy. As migrations rodam só no deploy da API: quando um avant-core novo traz migration, publique a API antes do worker.
@@ -31,6 +31,7 @@ main do avant-infra precisa ter a biblioteca em dia.
 | --- | --- |
 | `vars/avantPipeline.groovy` | o pipeline declarativo inteiro |
 | `vars/avantPythonChecks.groovy`, `vars/avantNodeChecks.groovy` | checagens |
+| `vars/avantSecretScan.groovy` | gitleaks no histórico, com o `.gitleaks.toml` do repositório |
 | `vars/avantImage.groovy` | build, push e promoção de imagem no GHCR |
 | `vars/avantRemote.groovy` | pedido de deploy por SSH |
 | `vars/avantImages.groovy` | imagens usadas nas checagens |
@@ -44,6 +45,8 @@ Roda na VM pequena com `compose/jenkins/docker-compose.yml`. Plugins em `compose
 sudo mkdir -p /srv/jenkins/home /srv/jenkins/secrets
 sudo chown 1000:1000 /srv/jenkins/home
 cp compose/jenkins/jenkins.env.example /srv/jenkins/jenkins.env   # preencha
+# Os segredos precisam ter permissão 600 (ou 400) e dono 1000.
+sudo scripts/conferir-segredos.sh 1000 /srv/jenkins/secrets/*
 docker compose -f compose/jenkins/docker-compose.yml --env-file /srv/jenkins/jenkins.env up -d --build
 ```
 
@@ -93,3 +96,4 @@ Em cada VM (staging na pequena, produção na principal), uma vez:
    ```
 
    Na produção: `.../production/scripts/remote-deploy.sh production main`. Com isso a chave só consegue pedir `api|web|worker <tag>` ou `backup` daquele ambiente; qualquer outro comando é recusado.
+5. Depois do primeiro `scripts/deploy.sh <ambiente> up`, o firewall de saída dos containers ([`README.md`](../README.md#firewall-de-saída-uma-vez-por-vm)).

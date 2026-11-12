@@ -14,6 +14,10 @@ GIT_CONFIG_VALUE_0="https://github.com/PedroH3nri/avant-core" \
   uv sync --frozen
 unset AVANT_CORE_ACCESS
 
+# Vulnerabilidades conhecidas nas dependências travadas no uv.lock (o avant-core é nosso e fica de fora).
+uv export --frozen --no-hashes --no-emit-project | grep -v '^avant-core @' > "$WORKSPACE_TMP/requirements-audit.txt"
+uvx pip-audit@2.9.0 --no-deps --disable-pip -r "$WORKSPACE_TMP/requirements-audit.txt"
+
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
