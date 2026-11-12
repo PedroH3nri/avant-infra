@@ -87,6 +87,40 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
 6. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo).
 
+### Rede com subnet fixa (uma vez por ambiente)
+
+A api só aceita `X-Forwarded-For` do nginx do stack (`FORWARDED_ALLOW_IPS`, obrigatória e sem
+`*`, avant-api#301), então a rede `avant-<ambiente>` tem subnet, gateway e faixa dinâmica fixas e
+o nginx um IP fixo, fora da faixa dinâmica. Tudo em `compose/<ambiente>/vm.env`:
+
+| Variável | Produção | Staging | Para quê |
+| --- | --- | --- | --- |
+| `AVANT_SUBNET` | `10.201.0.0/24` | `10.201.1.0/24` | rede do stack |
+| `AVANT_GATEWAY_IP` | `10.201.0.1` | `10.201.1.1` | de onde chega o nginx do host (`set_real_ip_from` do `vm.conf`) |
+| `AVANT_NGINX_IP` | `10.201.0.10` | `10.201.1.10` | `FORWARDED_ALLOW_IPS` da api |
+| `AVANT_DYNAMIC_IP_RANGE` | `10.201.0.128/25` | `10.201.1.128/25` | IPs dos outros containers |
+
+Antes de criar a rede, o `deploy.sh` roda `scripts/conferir-subnet.sh`, que recusa a subnet se ela
+se sobrepuser a uma rota IPv4 da VM (`ip -4 route`) ou a outra rede Docker (Genius, Data,
+Jenkins). Se recusar, escolha outra faixa e troque as quatro variáveis juntas.
+
+Numa VM que já tem a rede antiga (sem subnet fixa), o `deploy.sh` para e pede para recriá-la.
+Numa janela combinada (alguns minutos fora do ar; os volumes ficam):
+
+```bash
+cd /opt/avant-infra/<ambiente>
+docker compose -f compose/vm/docker-compose.yml --env-file compose/<ambiente>/vm.env \
+  --env-file /srv/avant/<ambiente>/compose.env --env-file /srv/avant/<ambiente>/release.env \
+  --profile '*' down
+scripts/deploy.sh <ambiente> up
+systemctl restart avant-firewall-<ambiente>
+```
+
+O `up` cria a rede nova, sobe o nginx com o IP fixo e a cor ativa da api com o
+`FORWARDED_ALLOW_IPS`. O firewall de saída precisa ser reaplicado porque a bridge muda de nome.
+O `vm.conf` agora é um template do nginx: mudanças nele só valem quando o container do nginx é
+recriado (`docker compose ... up -d --force-recreate nginx`), não com um `reload`.
+
 ### Firewall de saída (uma vez por VM)
 
 A api e o worker buscam URLs que vêm de fora (ícones, sites dos clientes): sem firewall, uma
