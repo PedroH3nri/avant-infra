@@ -47,6 +47,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
 - `/api/v1/events` passa sem buffer nos dois nginx. `/api/v1/metrics` responde 404 para fora; o Prometheus lê pela rede interna.
 - `/tag.js` e `/reward.js` (do avant-web, gerados do avant-tag) saem com `Access-Control-Allow-Origin: *` e cache de 10 minutos; `/api/reward/*` e `/api/tag/*` (rotas públicas do reward e da ad tag, chamadas dos sites dos clientes) vão para a API com corpo de até 16 KB.
 - O modelo do nginx do host está em `nginx/host/avant.conf.example` (certificados pelo certbot).
+- Os três nginx (host, stack da VM e local) gravam o `access_log` no formato `avant_redacted`, que troca por `***` os tokens de convite e de nova senha da URL e do Referer. O `error_log` ainda mostra a linha da requisição quando o upstream falha.
 
 ### Arquivos na VM
 
@@ -84,6 +85,62 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 3. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
 4. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
 5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
+6. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo).
+
+### Firewall de saída (uma vez por VM)
+
+A api e o worker buscam URLs que vêm de fora (ícones, sites dos clientes): sem firewall, uma
+URL que resolve para um endereço interno chega na rede da VM ou nos metadados da nuvem (SSRF;
+avant-infra#114, avant-worker#161). O `scripts/firewall-saida.sh` fecha isso no iptables:
+
+- os containers da rede `avant-<ambiente>` não abrem conexão nova para `10.0.0.0/8`,
+  `172.16.0.0/12`, `192.168.0.0/16` (RFC 1918), `100.64.0.0/10`, `169.254.0.0/16` (link-local e
+  metadados, `169.254.169.254`), `0.0.0.0/8`, `198.18.0.0/15`, multicast e reservados, nem para o
+  próprio host;
+- continuam liberados: a própria rede do Docker (Postgres, Redis, RabbitMQ e o nginx do stack),
+  o DNS da VM (lido do `resolv.conf`, só a porta 53) e o que estiver em `AVANT_EGRESS_ALLOW`.
+
+O que a VM precisa de verdade além disso entra em `AVANT_EGRESS_ALLOW`, no formato `ip:porta`
+(por exemplo o MongoDB do iGroone/data, se ele estiver num endereço privado ou no próprio host:
+`AVANT_EGRESS_ALLOW="10.0.0.5:27017"`). A rede do Docker precisa ficar sem IPv6 (o padrão): as
+regras são só IPv4, e o script recusa a rede com IPv6 ligado.
+
+Como root, depois do primeiro `scripts/deploy.sh <ambiente> up` (a rede precisa existir):
+
+```bash
+cat > /etc/default/avant-firewall-staging <<'ENV'
+AVANT_EGRESS_ALLOW=""
+ENV
+cat > /etc/systemd/system/avant-firewall-staging.service <<'UNIT'
+[Unit]
+Description=Firewall de saída dos containers do Avant (staging)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/default/avant-firewall-staging
+ExecStart=/opt/avant-infra/staging/scripts/firewall-saida.sh staging
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now avant-firewall-staging
+scripts/firewall-saida.sh staging status
+```
+
+Na produção, troque `staging` por `production` nos nomes e no caminho. As regras ficam nas chains
+`AVANT-SAIDA-<ambiente>` (saltada de `DOCKER-USER`, que o Docker não apaga) e
+`AVANT-HOST-<ambiente>` (saltada de `INPUT`). Se a rede `avant-<ambiente>` for recriada (um
+`docker compose down`), a bridge muda de nome: rode `systemctl restart avant-firewall-<ambiente>`.
+
+Para conferir, de dentro do worker (deve falhar por tempo esgotado):
+
+```bash
+docker exec avant-staging-worker-1 python -c \
+  "import urllib.request; urllib.request.urlopen('http://169.254.169.254/', timeout=3)"
+```
 
 ### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
 
