@@ -229,14 +229,21 @@ CPU): são alguns segundos fora do ar.
 
 Desde avant-infra#60 e #64 as senhas do Postgres entram como secrets do compose (precisa do
 Docker Compose 2.23 ou mais novo) e o `avant_app` tem `statement_timeout` e
-`idle_in_transaction_session_timeout` de 5 minutos. O `postgres/init/01-roles.sh` só roda na
-criação do banco; num banco que já existe (staging ou o seu local), rodar uma vez:
+`idle_in_transaction_session_timeout` de 5 minutos. Desde avant-infra#135 (core#370) ele também
+tem um teto de conexões: 170 em produção e 85 em staging (ver "Conexões com o Postgres" abaixo).
+O `postgres/init/01-roles.sh` só roda na criação do banco; num banco que já existe (staging,
+produção ou o seu local), rodar uma vez, como superusuário:
 
 ```bash
 docker compose ... exec postgres psql -U postgres -d avant -c \
   "ALTER ROLE avant_app SET statement_timeout = '5min'" -c \
-  "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'"
+  "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'" -c \
+  "ALTER ROLE avant_app CONNECTION LIMIT 85"
 ```
+
+O número do `CONNECTION LIMIT` é o `POSTGRES_APP_CONNECTION_LIMIT` do `compose/<ambiente>/vm.env`:
+`85` no staging e `170` na produção. Para conferir:
+`docker compose ... exec postgres psql -U postgres -d avant -c "SELECT rolconnlimit FROM pg_roles WHERE rolname = 'avant_app'"`.
 
 Num ambiente novo, se o `01-roles.sh` parar (secret de senha vazio ou ausente), o volume
 `postgres-data` fica meio inicializado: no `up` seguinte o Postgres sobe sem os papéis e não roda
@@ -257,12 +264,7 @@ com o `check_connection_budget`.
 | produção | 2 instâncias x 2 cores (deploy) x 2 processos x (10 + 5) = 120 | (4 + 2) x 5 = 30 | 170 | 200 |
 | staging | 1 instância x 2 cores (deploy) x 2 processos x (10 + 5) = 60 | (2 + 1) x 5 = 15 | 85 | 100 |
 
-- **Teto do `avant_app`** (`POSTGRES_APP_CONNECTION_LIMIT`): o `01-roles.sh` aplica com `CONNECTION LIMIT`. O que fica entre ele e o `max_connections` sobra para o superusuário, o `avant_owner` (migrations) e o backup, mesmo que a aplicação vaze conexões. Num banco que já existe, rodar uma vez:
-
-  ```bash
-  docker compose ... exec postgres psql -U postgres -d avant -c \
-    "ALTER ROLE avant_app CONNECTION LIMIT 170"   # 85 no staging
-  ```
+- **Teto do `avant_app`** (`POSTGRES_APP_CONNECTION_LIMIT`): o `01-roles.sh` aplica com `CONNECTION LIMIT`. O que fica entre ele e o `max_connections` sobra para o superusuário, o `avant_owner` (migrations) e o backup, mesmo que a aplicação vaze conexões. Num banco que já existe, o teto entra com o SQL de "Papéis do Postgres" acima.
 
   Ao mudar o número de instâncias, a concorrência dos workers ou o `DB_POOL_*`, refazer a conta e
   ajustar o teto e o `max_connections`.
