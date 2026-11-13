@@ -246,6 +246,35 @@ Troque `-U postgres -d avant` se `POSTGRES_SUPERUSER` ou `POSTGRES_DB` forem out
 `compose.env`. O `ALTER ROLE` só vale para conexões novas: as conexões da API e dos workers pegam
 o timeout depois que eles forem recriados (o `up` abaixo resolve isso).
 
+### Conexões com o Postgres (core#370)
+
+A api e o worker montam o engine pelo `new_engine` do core, com o mesmo pool em todo ambiente. Só
+os números vêm das variáveis `DB_POOL_*`, e os testes da api e do worker conferem a conta abaixo
+com o `check_connection_budget`.
+
+| Ambiente | API | Workers | Teto do `avant_app` | `max_connections` |
+| --- | --- | --- | --- | --- |
+| produção | 2 instâncias x 2 cores (deploy) x 2 processos x (10 + 5) = 120 | (4 + 2) x 5 = 30 | 170 | 200 |
+| staging | 1 instância x 2 cores (deploy) x 2 processos x (10 + 5) = 60 | (2 + 1) x 5 = 15 | 85 | 100 |
+
+- **Teto do `avant_app`** (`POSTGRES_APP_CONNECTION_LIMIT`): o `01-roles.sh` aplica com `CONNECTION LIMIT`. O que fica entre ele e o `max_connections` sobra para o superusuário, o `avant_owner` (migrations) e o backup, mesmo que a aplicação vaze conexões. Num banco que já existe, rodar uma vez:
+
+  ```bash
+  docker compose ... exec postgres psql -U postgres -d avant -c \
+    "ALTER ROLE avant_app CONNECTION LIMIT 170"   # 85 no staging
+  ```
+
+  Ao mudar o número de instâncias, a concorrência dos workers ou o `DB_POOL_*`, refazer a conta e
+  ajustar o teto e o `max_connections`.
+- **TLS (`sslmode`):** hoje a api, o worker e o Postgres estão na mesma VM, na rede interna do Docker, e a conexão vai sem TLS. Isso vale para o `DATABASE_URL` padrão do compose. Se o banco sair da VM, o `DATABASE_URL` passa a levar `?sslmode=verify-full` com a CA do servidor.
+- **Métricas do pool (api):**
+  - `avant_db_pool_checked_out`: conexões emprestadas a pedidos;
+  - `avant_db_pool_open_connections`: conexões abertas;
+  - `avant_db_pool_timeouts_total`: pedidos que esperaram além do `pool_timeout`.
+
+  O alerta (por exemplo, `increase(avant_db_pool_timeouts_total[5m]) > 0`) entra com as regras do
+  Prometheus em #5.
+
 ### Imagens com digest e Postgres com secrets (uma vez por ambiente)
 
 Desde avant-infra#64, as imagens da base têm digest e o Postgres recebe as senhas por secrets. O
