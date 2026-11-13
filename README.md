@@ -47,17 +47,17 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
 - `/api/v1/events` passa sem buffer nos dois nginx. `/api/v1/metrics` responde 404 para fora; o Prometheus lê pela rede interna.
 - `/tag.js` e `/reward.js` (do avant-web, gerados do avant-tag) saem com `Access-Control-Allow-Origin: *` e cache de 10 minutos; `/api/reward/*` e `/api/tag/*` (rotas públicas do reward e da ad tag, chamadas dos sites dos clientes) vão para a API com corpo de até 16 KB.
 - O modelo do nginx do host está em `nginx/host/avant.conf.example` (certificados pelo certbot).
-- Os três nginx (host, stack da VM e local) gravam o `access_log` no formato `avant_redacted`, que troca por `***` os tokens de convite e de nova senha da URL e do Referer. O `error_log` ainda mostra a linha da requisição quando o upstream falha.
+- Os três nginx (host, stack da VM e local) gravam o `access_log` no formato `avant_redacted`, que troca por `***` os tokens de convite e de nova senha da URL e do Referer. O `error_log` de cada `server` fica em `crit`: o erro do upstream (502) gravaria a linha da requisição com o token, e o `error_log` não tem formato. O 502 continua no `access_log` (status), e a causa nos logs da api.
 
 ### Arquivos na VM
 
-Em `/srv/avant/<ambiente>/` (dono `avant-deploy`, o usuário do deploy, permissão `600` ou `400` nos arquivos). O `deploy.sh` confere isso em `compose.env`, `app.env` e `gam-service-account.json` com o `scripts/conferir-segredos.sh` e para se algum estiver fora:
+Em `/srv/avant/<ambiente>/`, permissão `600` ou `400` nos arquivos. O dono é o `avant-deploy` (o usuário do deploy), menos a chave do GAM: ela é montada como secret (bind mount) no `worker-gam`, que roda como o uid `10001`, então fica com dono `10001` e permissão `400` (`sudo chown 10001 gam-service-account.json && sudo chmod 400 gam-service-account.json`). O `deploy.sh` confere o dono e a permissão arquivo por arquivo com o `scripts/conferir-segredos.sh` e para se algum estiver fora. Para conferir a leitura: `docker exec avant-<ambiente>-worker-gam-1 cat /run/secrets/gam-service-account.json`.
 
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
 | `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM |
-| `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` |
+| `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` (dono `10001`, permissão `400`) |
 | `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` (país das visitas) e na `api` (país dos floors das regras de preço) |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
 | `upstreams/*.conf` | `deploy.sh` | para qual cor o nginx manda o tráfego |
@@ -82,10 +82,11 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 1. Preparar o usuário `avant-deploy`, a cópia do avant-infra em `/opt/avant-infra/<ambiente>` e a chave do Jenkins ([`jenkins/README.md`](jenkins/README.md#preparar-uma-vm-para-receber-deploy)).
 2. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
    Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo).
-3. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
-4. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
-5. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
-6. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo).
+3. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo): o `deploy.sh` não
+   sobe nada sem ele.
+4. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
+5. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
+6. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
 
 ### Rede com subnet fixa (uma vez por ambiente)
 
@@ -99,12 +100,15 @@ o nginx um IP fixo, fora da faixa dinâmica. Tudo em `compose/<ambiente>/vm.env`
 | `AVANT_GATEWAY_IP` | `10.201.0.1` | `10.201.1.1` | de onde chega o nginx do host (`set_real_ip_from` do `vm.conf`) |
 | `AVANT_NGINX_IP` | `10.201.0.10` | `10.201.1.10` | `FORWARDED_ALLOW_IPS` da api |
 | `AVANT_DYNAMIC_IP_RANGE` | `10.201.0.128/25` | `10.201.1.128/25` | IPs dos outros containers |
+| `AVANT_BRIDGE` | `avant-prod` | `avant-stg` | nome fixo da bridge (até 15 letras), usado pelo firewall de saída |
 
 Antes de criar a rede, o `deploy.sh` roda `scripts/conferir-subnet.sh`, que recusa a subnet se ela
 se sobrepuser a uma rota IPv4 da VM (`ip -4 route`) ou a outra rede Docker (Genius, Data,
-Jenkins). Se recusar, escolha outra faixa e troque as quatro variáveis juntas.
+Jenkins). Se recusar, escolha outra faixa e troque as quatro variáveis de endereço juntas. O
+prefixo da subnet vai de `/8` a `/30`.
 
-Numa VM que já tem a rede antiga (sem subnet fixa), o `deploy.sh` para e pede para recriá-la.
+Numa VM que já tem a rede antiga (sem subnet fixa ou sem a bridge com nome fixo), o `deploy.sh`
+para e pede para recriá-la.
 Numa janela combinada (alguns minutos fora do ar; os volumes ficam):
 
 ```bash
@@ -112,12 +116,13 @@ cd /opt/avant-infra/<ambiente>
 docker compose -f compose/vm/docker-compose.yml --env-file compose/<ambiente>/vm.env \
   --env-file /srv/avant/<ambiente>/compose.env --env-file /srv/avant/<ambiente>/release.env \
   --profile '*' down
-scripts/deploy.sh <ambiente> up
 systemctl restart avant-firewall-<ambiente>
+scripts/deploy.sh <ambiente> up
 ```
 
-O `up` cria a rede nova, sobe o nginx com o IP fixo e a cor ativa da api com o
-`FORWARDED_ALLOW_IPS`. O firewall de saída precisa ser reaplicado porque a bridge muda de nome.
+O `up` cria a rede nova, com a bridge `AVANT_BRIDGE`, sobe o nginx com o IP fixo e a cor ativa da
+api com o `FORWARDED_ALLOW_IPS`. Com a bridge de nome fixo, um `down`/`up` depois disso não pede
+mais para reaplicar o firewall.
 O `vm.conf` agora é um template do nginx: mudanças nele só valem quando o container do nginx é
 recriado (`docker compose ... up -d --force-recreate nginx`), não com um `reload`.
 
@@ -134,12 +139,23 @@ avant-infra#114, avant-worker#161). O `scripts/firewall-saida.sh` fecha isso no 
 - continuam liberados: a própria rede do Docker (Postgres, Redis, RabbitMQ e o nginx do stack),
   o DNS da VM (lido do `resolv.conf`, só a porta 53) e o que estiver em `AVANT_EGRESS_ALLOW`.
 
-O que a VM precisa de verdade além disso entra em `AVANT_EGRESS_ALLOW`, no formato `ip:porta`
-(por exemplo o MongoDB do iGroone/data, se ele estiver num endereço privado ou no próprio host:
-`AVANT_EGRESS_ALLOW="10.0.0.5:27017"`). A rede do Docker precisa ficar sem IPv6 (o padrão): as
+O que a VM precisa de verdade além disso entra em `AVANT_EGRESS_ALLOW`, no formato `ip:porta` ou
+`ip/prefixo:porta` (prefixo de `/24` a `/32`, porta de 1 a 65535; o script recusa o resto, como
+`0.0.0.0/0:443`). Por exemplo o MongoDB do iGroone/data: `AVANT_EGRESS_ALLOW="10.0.0.5:27017"`.
+A regra casa o destino **original** da conexão (`conntrack --ctorigdst`), antes do DNAT: para um
+serviço com porta publicada no host (o Mongo num container de outro compose), vale o IP do host
+e a porta publicada, não o IP do container. Confira na VM, de dentro do worker, que o Mongo
+responde e que outro endereço privado não. A rede do Docker precisa ficar sem IPv6 (o padrão): as
 regras são só IPv4, e o script recusa a rede com IPv6 ligado.
 
-Como root, depois do primeiro `scripts/deploy.sh <ambiente> up` (a rede precisa existir):
+As regras casam a bridge pelo nome fixo (`AVANT_BRIDGE` do `vm.env`), então podem ser aplicadas
+antes de a rede existir e sobrevivem a um `down`/`up`. Entram numa transação só
+(`iptables-restore --noflush`): se o iptables recusar qualquer linha, nada muda e as regras
+anteriores, com os DROPs, continuam. Depois de aplicar, o script grava a bridge em
+`/run/avant-firewall/<ambiente>`, e o `deploy.sh` para se ela não bater com o `AVANT_BRIDGE`
+(firewall desligado, ou a VM reiniciou e a unit não rodou).
+
+Como root, antes do primeiro `scripts/deploy.sh <ambiente> up`:
 
 ```bash
 cat > /etc/default/avant-firewall-staging <<'ENV'
@@ -153,6 +169,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 EnvironmentFile=/etc/default/avant-firewall-staging
 ExecStart=/opt/avant-infra/staging/scripts/firewall-saida.sh staging
 
@@ -166,8 +183,8 @@ scripts/firewall-saida.sh staging status
 
 Na produção, troque `staging` por `production` nos nomes e no caminho. As regras ficam nas chains
 `AVANT-SAIDA-<ambiente>` (saltada de `DOCKER-USER`, que o Docker não apaga) e
-`AVANT-HOST-<ambiente>` (saltada de `INPUT`). Se a rede `avant-<ambiente>` for recriada (um
-`docker compose down`), a bridge muda de nome: rode `systemctl restart avant-firewall-<ambiente>`.
+`AVANT-HOST-<ambiente>` (saltada de `INPUT`). Para mudar o `AVANT_EGRESS_ALLOW`, edite o
+`/etc/default/avant-firewall-<ambiente>` e rode `systemctl restart avant-firewall-<ambiente>`.
 
 Para conferir, de dentro do worker (deve falhar por tempo esgotado):
 
@@ -228,6 +245,35 @@ o init de novo. Corrija o secret, apague o volume (sem dados ainda) e suba de no
 Troque `-U postgres -d avant` se `POSTGRES_SUPERUSER` ou `POSTGRES_DB` forem outros no
 `compose.env`. O `ALTER ROLE` só vale para conexões novas: as conexões da API e dos workers pegam
 o timeout depois que eles forem recriados (o `up` abaixo resolve isso).
+
+### Conexões com o Postgres (core#370)
+
+A api e o worker montam o engine pelo `new_engine` do core, com o mesmo pool em todo ambiente. Só
+os números vêm das variáveis `DB_POOL_*`, e os testes da api e do worker conferem a conta abaixo
+com o `check_connection_budget`.
+
+| Ambiente | API | Workers | Teto do `avant_app` | `max_connections` |
+| --- | --- | --- | --- | --- |
+| produção | 2 instâncias x 2 cores (deploy) x 2 processos x (10 + 5) = 120 | (4 + 2) x 5 = 30 | 170 | 200 |
+| staging | 1 instância x 2 cores (deploy) x 2 processos x (10 + 5) = 60 | (2 + 1) x 5 = 15 | 85 | 100 |
+
+- **Teto do `avant_app`** (`POSTGRES_APP_CONNECTION_LIMIT`): o `01-roles.sh` aplica com `CONNECTION LIMIT`. O que fica entre ele e o `max_connections` sobra para o superusuário, o `avant_owner` (migrations) e o backup, mesmo que a aplicação vaze conexões. Num banco que já existe, rodar uma vez:
+
+  ```bash
+  docker compose ... exec postgres psql -U postgres -d avant -c \
+    "ALTER ROLE avant_app CONNECTION LIMIT 170"   # 85 no staging
+  ```
+
+  Ao mudar o número de instâncias, a concorrência dos workers ou o `DB_POOL_*`, refazer a conta e
+  ajustar o teto e o `max_connections`.
+- **TLS (`sslmode`):** hoje a api, o worker e o Postgres estão na mesma VM, na rede interna do Docker, e a conexão vai sem TLS. Isso vale para o `DATABASE_URL` padrão do compose. Se o banco sair da VM, o `DATABASE_URL` passa a levar `?sslmode=verify-full` com a CA do servidor.
+- **Métricas do pool (api):**
+  - `avant_db_pool_checked_out`: conexões emprestadas a pedidos;
+  - `avant_db_pool_open_connections`: conexões abertas;
+  - `avant_db_pool_timeouts_total`: pedidos que esperaram além do `pool_timeout`.
+
+  O alerta (por exemplo, `increase(avant_db_pool_timeouts_total[5m]) > 0`) entra com as regras do
+  Prometheus em #5.
 
 ### Imagens com digest e Postgres com secrets (uma vez por ambiente)
 

@@ -256,14 +256,15 @@ Use `--no-sync` enquanto estiver testando: um `uv run` sem ele (ou um `uv sync`)
 | --- | --- |
 | `uv sync` da API ou do worker falha ao baixar o `avant-core` | o git não autentica no GitHub: `gh auth login` |
 | `relation "companies" does not exist` (no bootstrap ou na API) | as migrations não rodaram nesse banco: `uv run alembic upgrade head` no avant-core (passo 5). O Postgres do Docker cria só o banco vazio e os papéis |
-| A API não sobe: `database_url` ou `mfa_encryption_key` "Field required" | o `dev.env` não foi carregado neste terminal |
-| A API ou o worker não sobe: `redis_url`, `celery_broker_url`, `mail_transport` ou `smtp_url` "Field required" (ou "é obrigatória") | falta a variável no `dev.env` (passo 4) |
+| A API ou o worker não sobe: `configuração ... incompleta: DATABASE_URL, MFA_ENCRYPTION_KEY, ...` (muitos nomes) | o `dev.env` não foi carregado neste terminal (`set -a; . ../dev.env; set +a`) |
+| A API não sobe: `configuração da API incompleta: NOMES` | faltam no `dev.env` as variáveis listadas (passo 4). Os nomes são os das variáveis, em maiúsculas; o valor nunca aparece |
+| O worker não sobe: `configuração do worker incompleta: NOMES` | o mesmo, no terminal do worker |
 | O e-mail do convite não aparece no Mailpit | o Mailpit não está de pé (`docker compose ... ps`), ou o `dev.env` não tem `MAIL_TRANSPORT=smtp` e `SMTP_URL=smtp://localhost:1025`. O convite da API vai pela fila `mail`: confira também o worker |
 | Login responde 403 `mfa_required` em tudo | a equipe Groone precisa configurar o 2FA; o painel leva para essa tela |
 | Tabelas aparecem vazias ou `permission denied` | rodou a aplicação como `avant_owner`/`postgres`, ou criou um banco sem os privilégios do passo 10 |
 | O painel mostra erro de rede em toda chamada | a API não está em `127.0.0.1:8000` |
 | O login responde certo, mas a sessão não fica | no Safari, os cookies `Secure` não valem em `http://localhost`: use o Chrome ou o Firefox, ou o HTTPS local |
-| A API não sobe: `forwarded_allow_ips` "Field required" ou "aceita só endereços ou redes" | falta o `FORWARDED_ALLOW_IPS` no `dev.env`, ou ele está com `*` (passo 4) |
+| A API não sobe: `configuração da API incompleta: FORWARDED_ALLOW_IPS` | falta o `FORWARDED_ALLOW_IPS` no `dev.env`, ou ele está com `*` ou com algo que não é IP ou rede (passo 4) |
 | Com o HTTPS local, o IP das sessões aparece como o do nginx | o `FORWARDED_ALLOW_IPS` não bate com o endereço do nginx: `127.0.0.1` no macOS, `127.0.0.1,10.250.0.10` no Linux |
 | `docker compose up` diz que a rede `avant_default` "needs to be recreated" | a rede ganhou subnet fixa: `docker compose -f compose/local/docker-compose.yml --env-file .env down` (sem `-v`, os dados ficam) e suba de novo |
 | O SSE (avisos em tempo real) não chega | o worker publica no Redis: confira o `REDIS_URL` nos dois lados |
@@ -306,4 +307,4 @@ Troque `APP_BASE_URL=https://avant.localhost` no `dev.env`, reinicie a API e o w
 
 ## Perfil `app` do compose
 
-O `compose/local/docker-compose.yml` tem um perfil `app`, que sobe API, worker, scheduler e painel em containers, atrás do nginx com HTTPS (suba com `--profile app --profile https`, com o certificado da seção acima e `AVANT_API_UPSTREAM=api:8000` e `AVANT_WEB_UPSTREAM=web:8080` no `.env`). A API em container recebe `FORWARDED_ALLOW_IPS` com o IP fixo do nginx (`AVANT_LOCAL_NGINX_IP`). O build da API e do worker usa um token do GitHub como secret: `GITHUB_TOKEN="$(gh auth token)" docker compose -f compose/local/docker-compose.yml --env-file .env --profile app build`. Ele ainda não serve para desenvolver: não roda as migrations. Até isso ser corrigido, use o caminho deste guia. A correção está na [issue #16](https://github.com/PedroH3nri/avant-infra/issues/16).
+O `compose/local/docker-compose.yml` tem um perfil `app`, que sobe API, worker, scheduler e painel em containers, atrás do nginx com HTTPS (suba com `--profile app --profile https`, com o certificado da seção acima e, no `.env`, `AVANT_API_UPSTREAM=api:8000`, `AVANT_WEB_UPSTREAM=web:8080` e `APP_BASE_URL=https://avant.localhost`: o padrão do `.env` aponta para o Vite, e os links dos e-mails sairiam errados). A API em container recebe `FORWARDED_ALLOW_IPS` com o IP fixo do nginx (`AVANT_LOCAL_NGINX_IP`). O build da API e do worker usa um token do GitHub como secret: `GITHUB_TOKEN="$(gh auth token)" docker compose -f compose/local/docker-compose.yml --env-file .env --profile app build`. Ele ainda não serve para desenvolver: não roda as migrations. Até isso ser corrigido, use o caminho deste guia. A correção está na [issue #16](https://github.com/PedroH3nri/avant-infra/issues/16).

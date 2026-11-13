@@ -28,7 +28,7 @@ check_secret() {
   read -r mode owner_name owner_id < <(stat -c '%a %U %u' "$secret_file")
   allowed_mode "$mode" || die "$secret_file está com permissão $mode; use chmod 600 (ou 400)"
   [[ "$owner_name" == "$expected_owner" || "$owner_id" == "$expected_owner" ]] \
-    || die "$secret_file pertence a $owner_name; o dono precisa ser $expected_owner"
+    || die "$secret_file pertence a $owner_name (uid $owner_id); o dono precisa ser $expected_owner"
 }
 
 [[ $# -ge 2 ]] || die "uso: $0 <dono> <arquivo>..."

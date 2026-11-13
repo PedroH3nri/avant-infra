@@ -11,21 +11,29 @@
 # O avant_app tem timeouts padrão como rede de segurança: a API usa 30 s por
 # conta própria e as tarefas longas do worker podem subir com SET LOCAL.
 # Sem o secret, ou com ele vazio, o init para: o papel nunca nasce sem senha.
+# O avant_app tem um teto de conexões (POSTGRES_APP_CONNECTION_LIMIT, 170 por padrão) abaixo do
+# max_connections, para sobrar conexão ao superusuário, ao avant_owner e ao backup.
 set -eu
 
 owner_password="$(cat /run/secrets/avant-owner-password)"
 app_password="$(cat /run/secrets/avant-app-password)"
 [ -n "$owner_password" ] || { echo "secret avant-owner-password vazio" >&2; exit 1; }
 [ -n "$app_password" ] || { echo "secret avant-app-password vazio" >&2; exit 1; }
+app_connection_limit="${POSTGRES_APP_CONNECTION_LIMIT:-170}"
+case "$app_connection_limit" in
+  '' | *[!0-9]*) echo "POSTGRES_APP_CONNECTION_LIMIT precisa ser um número" >&2; exit 1 ;;
+esac
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v owner_password="$owner_password" \
   -v app_password="$app_password" \
+  -v app_connection_limit="$app_connection_limit" \
   -v database="$POSTGRES_DB" <<'SQL'
 CREATE ROLE avant_owner LOGIN PASSWORD :'owner_password';
 CREATE ROLE avant_app LOGIN PASSWORD :'app_password' NOBYPASSRLS;
 ALTER ROLE avant_app SET statement_timeout = '5min';
 ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min';
+ALTER ROLE avant_app CONNECTION LIMIT :app_connection_limit;
 
 ALTER DATABASE :"database" OWNER TO avant_owner;
 ALTER SCHEMA public OWNER TO avant_owner;
