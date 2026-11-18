@@ -207,6 +207,14 @@ services:
       - source: gam-service-account
         target: gam-service-account.json
 
+  # Fila facebook (decisão 16): Graph API, com cota própria por app e por conta. Lê
+  # FACEBOOK_APP_ID, FACEBOOK_APP_SECRET e FACEBOOK_TOKEN_KEY do app.env.
+  worker-facebook:
+    <<: *worker
+    mem_limit: ${WORKER_FACEBOOK_MEM_LIMIT:-1g}
+    cpus: ${WORKER_FACEBOOK_CPUS:-1}
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "facebook", "-c", "${WORKER_FACEBOOK_CONCURRENCY:-2}", "-n", "facebook@%h", "-l", "info"]
+
   # Um só agendador por ambiente, senão as tarefas periódicas saem em dobro.
   scheduler:
     <<: *worker

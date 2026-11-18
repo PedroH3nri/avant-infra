@@ -39,7 +39,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
   └─ 127.0.0.1:8080 (produção) ou 127.0.0.1:8081 (staging)
        └─ nginx do stack ─┬─ /api  → api-blue | api-green   (2 réplicas em produção)
                           └─ /     → web-blue | web-green   (2 réplicas em produção)
-  worker (filas default, mail) · worker-gam (fila gam) · scheduler (beat, sempre 1)
+  worker (filas default, mail) · worker-gam (fila gam) · worker-facebook (fila facebook) · scheduler (beat, sempre 1)
   postgres · rabbitmq · redis
 ```
 
@@ -70,7 +70,7 @@ O Jenkins faz o deploy sozinho a cada merge em `develop` (staging) e em `main` (
 scripts/deploy.sh staging up                # Postgres, RabbitMQ, Redis, nginx e o que já estiver ativo
 scripts/deploy.sh staging api <tag>         # migrations com a imagem nova, depois blue-green da API
 scripts/deploy.sh staging web <tag>         # blue-green do painel
-scripts/deploy.sh staging worker <tag>      # worker, worker-gam e scheduler
+scripts/deploy.sh staging worker <tag>      # worker, worker-gam, worker-facebook e scheduler
 scripts/deploy.sh staging rollback api      # volta para a cor anterior (fica parada, pronta)
 scripts/deploy.sh staging status
 ```
