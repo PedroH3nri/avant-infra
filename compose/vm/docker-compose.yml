@@ -87,7 +87,7 @@ services:
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
       # Teto de conexões do avant_app (01-roles.sh), abaixo do max_connections.
-      POSTGRES_APP_CONNECTION_LIMIT: ${POSTGRES_APP_CONNECTION_LIMIT:-170}
+      POSTGRES_APP_CONNECTION_LIMIT: ${POSTGRES_APP_CONNECTION_LIMIT:-180}
     command: ["postgres", "-c", "max_connections=${POSTGRES_MAX_CONNECTIONS:-200}", "-c", "shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}"]
     mem_limit: ${POSTGRES_MEM_LIMIT:-4g}
     cpus: ${POSTGRES_CPUS:-4}
@@ -214,6 +214,15 @@ services:
     mem_limit: ${WORKER_FACEBOOK_MEM_LIMIT:-1g}
     cpus: ${WORKER_FACEBOOK_CPUS:-1}
     command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "facebook", "-c", "${WORKER_FACEBOOK_CONCURRENCY:-2}", "-n", "facebook@%h", "-l", "info"]
+
+  # Fila google_ads (decisão 17): API do Google Ads, com cota própria do developer token. Lê
+  # GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_DEVELOPER_TOKEN e GOOGLE_ADS_TOKEN_KEY
+  # do app.env.
+  worker-google-ads:
+    <<: *worker
+    mem_limit: ${WORKER_GOOGLE_ADS_MEM_LIMIT:-1g}
+    cpus: ${WORKER_GOOGLE_ADS_CPUS:-1}
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "google_ads", "-c", "${WORKER_GOOGLE_ADS_CONCURRENCY:-2}", "-n", "google_ads@%h", "-l", "info"]
 
   # Um só agendador por ambiente, senão as tarefas periódicas saem em dobro.
   scheduler:

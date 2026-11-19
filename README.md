@@ -39,7 +39,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
   └─ 127.0.0.1:8080 (produção) ou 127.0.0.1:8081 (staging)
        └─ nginx do stack ─┬─ /api  → api-blue | api-green   (2 réplicas em produção)
                           └─ /     → web-blue | web-green   (2 réplicas em produção)
-  worker (filas default, mail) · worker-gam (fila gam) · worker-facebook (fila facebook) · scheduler (beat, sempre 1)
+  worker (filas default, mail) · worker-gam (fila gam) · worker-facebook (fila facebook) · worker-google-ads (fila google_ads) · scheduler (beat, sempre 1)
   postgres · rabbitmq · redis
 ```
 
@@ -56,7 +56,7 @@ Em `/srv/avant/<ambiente>/`, permissão `600` ou `400` nos arquivos. O dono é o
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
-| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM, Facebook (`FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_TOKEN_KEY`; ver "Facebook" abaixo) |
+| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM, Facebook (`FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_TOKEN_KEY`; ver "Facebook" abaixo), Google Ads (`GOOGLE_ADS_*`; ver "Google Ads" abaixo) |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` (dono `10001`, permissão `400`) |
 | `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` (país das visitas) e na `api` (país dos floors das regras de preço) |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
@@ -70,7 +70,7 @@ O Jenkins faz o deploy sozinho a cada merge em `develop` (staging) e em `main` (
 scripts/deploy.sh staging up                # Postgres, RabbitMQ, Redis, nginx e o que já estiver ativo
 scripts/deploy.sh staging api <tag>         # migrations com a imagem nova, depois blue-green da API
 scripts/deploy.sh staging web <tag>         # blue-green do painel
-scripts/deploy.sh staging worker <tag>      # worker, worker-gam, worker-facebook e scheduler
+scripts/deploy.sh staging worker <tag>      # worker, worker-gam, worker-facebook, worker-google-ads e scheduler
 scripts/deploy.sh staging rollback api      # volta para a cor anterior (fica parada, pronta)
 scripts/deploy.sh staging status
 ```
@@ -81,7 +81,7 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 
 1. Preparar o usuário `avant-deploy`, a cópia do avant-infra em `/opt/avant-infra/<ambiente>` e a chave do Jenkins ([`jenkins/README.md`](jenkins/README.md#preparar-uma-vm-para-receber-deploy)).
 2. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
-   Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo) e preparar o Facebook (ver "Facebook" abaixo).
+   Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo) e preparar o Facebook e o Google Ads (ver "Facebook" e "Google Ads" abaixo).
 3. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo): o `deploy.sh` não
    sobe nada sem ele.
 4. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
@@ -218,6 +218,29 @@ O upload de mídia dos anúncios (`/api/v1/facebook/media`, até 100 MB) já tem
 nos três nginx; no nginx do host, copie esse bloco do `nginx/host/avant.conf.example` se o arquivo
 da VM for anterior a ele.
 
+### Google Ads (uma vez por ambiente)
+
+A integração com o Google Ads (decisão 17) usa o cliente OAuth e o developer token que o Genius já
+usa (app verificado pelo Google). Sem as quatro variáveis abaixo a api responde
+`google_ads_not_configured` (503) nas rotas do Google Ads e o `worker-google-ads` não sincroniza
+nada; o resto do Avant funciona normal.
+
+1. No `app.env` do ambiente, os mesmos valores para a api e o worker:
+   - `GOOGLE_ADS_CLIENT_ID` e `GOOGLE_ADS_CLIENT_SECRET`: do cliente OAuth do Genius no Google Cloud.
+   - `GOOGLE_ADS_DEVELOPER_TOKEN`: do Centro de API da MCC do Genius.
+   - `GOOGLE_ADS_TOKEN_KEY`: chave Fernet que cifra os tokens dos logins no banco, gerada uma vez por
+     ambiente como a do Facebook. Trocar a chave invalida os logins já conectados.
+   - `GOOGLE_ADS_API_VERSION` é opcional (padrão no `.env.example`).
+2. No cliente OAuth, em "URIs de redirecionamento autorizados", incluir o endereço do ambiente:
+   - produção: `https://avant.groone.com/api/v1/google-ads/oauth/callback`
+   - staging: `https://staging.avant.groone.com/api/v1/google-ads/oauth/callback`
+3. Em cada network do GAM, criar a chave de segmentação `utm_keyword` (valores livres), como as
+   outras `utm_*`. O Avant só lê o GAM: sem a chave, a receita por palavra-chave fica vazia.
+4. Deploy na ordem: `scripts/deploy.sh <ambiente> worker <tag>` antes de `api <tag>`, para a fila
+   `google_ads` já ter quem a consuma quando a api começar a mandar tarefas.
+5. Conferir: em Integrações, Google Ads, conectar um login e ver as contas aparecerem em alguns
+   minutos.
+
 ### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
 
 O worker descobre o país de cada visita da ad tag (M10) pelo IP, com a base GeoLite2 Country da
@@ -255,7 +278,7 @@ CPU): são alguns segundos fora do ar.
 Desde avant-infra#60 e #64 as senhas do Postgres entram como secrets do compose (precisa do
 Docker Compose 2.23 ou mais novo) e o `avant_app` tem `statement_timeout` e
 `idle_in_transaction_session_timeout` de 5 minutos. Desde avant-infra#135 (core#370) ele também
-tem um teto de conexões: 170 em produção e 85 em staging (ver "Conexões com o Postgres" abaixo).
+tem um teto de conexões: 180 em produção e 90 em staging (ver "Conexões com o Postgres" abaixo).
 O `postgres/init/01-roles.sh` só roda na criação do banco; num banco que já existe (staging,
 produção ou o seu local), rodar uma vez, como superusuário:
 
@@ -263,11 +286,11 @@ produção ou o seu local), rodar uma vez, como superusuário:
 docker compose ... exec postgres psql -U postgres -d avant -c \
   "ALTER ROLE avant_app SET statement_timeout = '5min'" -c \
   "ALTER ROLE avant_app SET idle_in_transaction_session_timeout = '5min'" -c \
-  "ALTER ROLE avant_app CONNECTION LIMIT 85"
+  "ALTER ROLE avant_app CONNECTION LIMIT 90"
 ```
 
 O número do `CONNECTION LIMIT` é o `POSTGRES_APP_CONNECTION_LIMIT` do `compose/<ambiente>/vm.env`:
-`85` no staging e `170` na produção. Para conferir:
+`90` no staging e `180` na produção (subiu com o `worker-google-ads`; num banco que já existe, rode o SQL acima com o número novo). Para conferir:
 `docker compose ... exec postgres psql -U postgres -d avant -c "SELECT rolconnlimit FROM pg_roles WHERE rolname = 'avant_app'"`.
 
 Num ambiente novo, se o `01-roles.sh` parar (secret de senha vazio ou ausente), o volume
@@ -286,8 +309,8 @@ com o `check_connection_budget`.
 
 | Ambiente | API | Workers | Teto do `avant_app` | `max_connections` |
 | --- | --- | --- | --- | --- |
-| produção | 2 instâncias x 2 cores (deploy) x 2 processos x (10 + 5) = 120 | (4 + 2) x 5 = 30 | 170 | 200 |
-| staging | 1 instância x 2 cores (deploy) x 2 processos x (10 + 5) = 60 | (2 + 1) x 5 = 15 | 85 | 100 |
+| produção | 2 instâncias x 2 cores (deploy) x 2 processos x (10 + 5) = 120 | (4 + 2 + 2 + 2) x 5 = 50 | 180 | 200 |
+| staging | 1 instância x 2 cores (deploy) x 2 processos x (10 + 5) = 60 | (2 + 1 + 1 + 1) x 5 = 25 | 90 | 100 |
 
 - **Teto do `avant_app`** (`POSTGRES_APP_CONNECTION_LIMIT`): o `01-roles.sh` aplica com `CONNECTION LIMIT`. O que fica entre ele e o `max_connections` sobra para o superusuário, o `avant_owner` (migrations) e o backup, mesmo que a aplicação vaze conexões. Num banco que já existe, o teto entra com o SQL de "Papéis do Postgres" acima.
 
