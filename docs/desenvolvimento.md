@@ -123,6 +123,7 @@ O que fica de fora em desenvolvimento, e o que acontece sem cada variável:
 | `GAM_SERVICE_ACCOUNT_FILE` e `GAM_GROONE_NETWORK_CODE` | as tarefas da fila `gam` falham com "defina GAM_SERVICE_ACCOUNT_FILE..." e a network fica com erro. O resto do painel funciona |
 | `PAGE_VIEWS_MONGO_URL` | o agendador não sincroniza as visitas e a tela Page Views fica vazia. Use um usuário só de leitura no Mongo do iGroone/data |
 | `GEOLITE2_COUNTRY_FILE` | o país das visitas da tag do Avant fica `unknown` (as visitas são gravadas do mesmo jeito). Nas VMs: baixe a base GeoLite2 Country da MaxMind (conta grátis) para `/srv/avant/<ambiente>/geoip/GeoLite2-Country.mmdb`, ponha `GEOLITE2_COUNTRY_FILE=/geoip/GeoLite2-Country.mmdb` no `app.env` e atualize o arquivo toda semana (por exemplo com o `geoipupdate` da MaxMind num cron do host). O worker lê a base ao subir: depois de trocar o arquivo, reinicie o `worker` |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` e `FACEBOOK_TOKEN_KEY` | o botão "Conectar perfil" do Facebook responde `facebook_not_configured` e as tarefas da fila `facebook` falham com "defina FACEBOOK_...". A chave é uma chave Fernet (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`), a mesma na api e no worker; trocar a chave obriga todo mundo a reconectar os perfis |
 | `OPENEXCHANGERATES_APP_ID` | o agendador não busca cotações e o painel só mostra dólar (as outras moedas aparecem desabilitadas em Configurações → Conta) |
 
 Para testar o GAM de verdade, peça ao Pedro a chave da conta de serviço. Guarde fora dos repositórios e aponte `GAM_SERVICE_ACCOUNT_FILE` para ela só no terminal do worker.
@@ -169,7 +170,7 @@ Dois terminais, no `avant-worker`:
 cd avant-worker
 uv sync
 set -a; . ../dev.env; set +a
-uv run celery -A avant_worker.app worker -Q default,mail,gam -l info
+uv run celery -A avant_worker.app worker -Q default,mail,gam,facebook -l info
 ```
 
 ```bash
