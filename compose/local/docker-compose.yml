@@ -98,7 +98,7 @@ services:
     build:
       context: ../../../avant-worker
       secrets: [github_token]
-    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail,gam", "-l", "info"]
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "default,mail,gam,facebook", "-l", "info"]
     env_file: ../../.env
     environment: *app-env
     depends_on:
