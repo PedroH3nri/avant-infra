@@ -5,6 +5,7 @@ Todas as skills que o trabalho em `avant-infra` usa ficam aqui, versionadas com 
 | Skill | Quando usar | Origem |
 | --- | --- | --- |
 | `avant-clean-code` | Sempre que escrever código: nomes claros, comentário de 1 ou 2 linhas por função, nada de comentário ao lado. Obrigatório, conferido no CI. | Avant |
+| `avant-seguranca` | Sempre que criar ou mudar rota, caso de uso, tabela, tarefa, tela ou script: as 20 regras de segurança (decisão 18) e a checagem antes do PR. | Avant |
 | `avant-fluxo-de-trabalho` | Começo de qualquer tarefa: issue, branch, checagens, PR, merge e fechar a issue. | Avant |
 | `avant-deploy-vm` | Compose, nginx, deploy ou monitoramento no avant-infra, e a validação antes do PR. | Avant |
 | `using-superpowers` | Carregada no começo de cada sessão pelo hook. Ensina a procurar e usar as skills antes de agir. | superpowers 7.0.1 |

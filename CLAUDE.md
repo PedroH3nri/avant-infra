@@ -12,6 +12,9 @@ Infraestrutura do Groone Avant (docker compose, nginx, Postgres, monitoramento, 
 - Clean code obrigatório também nos scripts (skill `avant-clean-code`): nomes claros, nada de
   variável de uma letra, um comentário de 1 ou 2 linhas acima de cada função, nada de
   comentário ao lado do código. Sem CI aqui: confira à mão antes do merge.
+- Segurança obrigatória (skill `avant-seguranca`, decisão 18): nada de segredo ou dado bancário
+  em resposta, log ou lista; acesso declarado em toda rota; isolamento por Empresa com teste de
+  outra Empresa; checagem da skill antes do PR.
 
 ## Contexto, issues e skills
 
