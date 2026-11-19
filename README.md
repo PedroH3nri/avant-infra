@@ -56,7 +56,7 @@ Em `/srv/avant/<ambiente>/`, permissão `600` ou `400` nos arquivos. O dono é o
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
-| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM |
+| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM, Facebook (`FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_TOKEN_KEY`; ver "Facebook" abaixo) |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` (dono `10001`, permissão `400`) |
 | `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` (país das visitas) e na `api` (país dos floors das regras de preço) |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
@@ -81,7 +81,7 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
 
 1. Preparar o usuário `avant-deploy`, a cópia do avant-infra em `/opt/avant-infra/<ambiente>` e a chave do Jenkins ([`jenkins/README.md`](jenkins/README.md#preparar-uma-vm-para-receber-deploy)).
 2. Criar `/srv/avant/<ambiente>/` com `compose.env`, `app.env` e `gam-service-account.json`.
-   Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo).
+   Pôr também a base GeoLite2 (ver "Base GeoLite2" abaixo) e preparar o Facebook (ver "Facebook" abaixo).
 3. Ligar o firewall de saída dos containers (ver "Firewall de saída" abaixo): o `deploy.sh` não
    sobe nada sem ele.
 4. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
@@ -192,6 +192,31 @@ Para conferir, de dentro do worker (deve falhar por tempo esgotado):
 docker exec avant-staging-worker-1 python -c \
   "import urllib.request; urllib.request.urlopen('http://169.254.169.254/', timeout=3)"
 ```
+
+### Facebook (uma vez por ambiente)
+
+A integração com o Facebook (decisão 16) usa o app da Meta que a Groone já tem. Sem as três
+variáveis abaixo a api responde `facebook_not_configured` (503) nas rotas do Facebook e o
+`worker-facebook` não sincroniza nada; o resto do Avant funciona normal.
+
+1. No `app.env` do ambiente, os mesmos valores para a api e o worker:
+   - `FACEBOOK_APP_ID` e `FACEBOOK_APP_SECRET`: do app da Meta (Configurações do app, Básico).
+   - `FACEBOOK_TOKEN_KEY`: chave Fernet que cifra os tokens dos perfis no banco, gerada uma vez por
+     ambiente com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+     Trocar a chave invalida os perfis já conectados (cada um precisa conectar de novo).
+   - `FACEBOOK_GRAPH_VERSION` é opcional (padrão no `.env.example`).
+2. No app da Meta, em Login do Facebook, Configurações, incluir em "URIs de redirecionamento do
+   OAuth válidos" o endereço do ambiente:
+   - produção: `https://avant.groone.com/api/v1/facebook/oauth/callback`
+   - staging: `https://staging.avant.groone.com/api/v1/facebook/oauth/callback`
+3. Deploy na ordem: `scripts/deploy.sh <ambiente> worker <tag>` antes de `api <tag>`, para a fila
+   `facebook` já ter quem a consuma quando a api começar a mandar tarefas.
+4. Conferir: em Integrações, Facebook, conectar um perfil e ver as contas de anúncio aparecerem em
+   alguns minutos.
+
+O upload de mídia dos anúncios (`/api/v1/facebook/media`, até 100 MB) já tem o `location` próprio
+nos três nginx; no nginx do host, copie esse bloco do `nginx/host/avant.conf.example` se o arquivo
+da VM for anterior a ele.
 
 ### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
 
