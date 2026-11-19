@@ -225,21 +225,44 @@ usa (app verificado pelo Google). Sem as quatro variáveis abaixo a api responde
 `google_ads_not_configured` (503) nas rotas do Google Ads e o `worker-google-ads` não sincroniza
 nada; o resto do Avant funciona normal.
 
-1. No `app.env` do ambiente, os mesmos valores para a api e o worker:
-   - `GOOGLE_ADS_CLIENT_ID` e `GOOGLE_ADS_CLIENT_SECRET`: do cliente OAuth do Genius no Google Cloud.
-   - `GOOGLE_ADS_DEVELOPER_TOKEN`: do Centro de API da MCC do Genius.
-   - `GOOGLE_ADS_TOKEN_KEY`: chave Fernet que cifra os tokens dos logins no banco, gerada uma vez por
-     ambiente como a do Facebook. Trocar a chave invalida os logins já conectados.
-   - `GOOGLE_ADS_API_VERSION` é opcional (padrão no `.env.example`).
+1. No `app.env` do ambiente (`/srv/avant/<ambiente>/app.env`), os mesmos valores para a api e o
+   worker:
+
+   ```
+   GOOGLE_ADS_CLIENT_ID=<id do cliente OAuth do Genius>
+   GOOGLE_ADS_CLIENT_SECRET=<segredo desse cliente>
+   GOOGLE_ADS_DEVELOPER_TOKEN=<developer token da MCC do Genius>
+   GOOGLE_ADS_TOKEN_KEY=<chave Fernet gerada abaixo>
+   GOOGLE_ADS_API_VERSION=v23
+   ```
+
+   - `GOOGLE_ADS_CLIENT_ID` e `GOOGLE_ADS_CLIENT_SECRET`: do cliente OAuth do Genius no Google Cloud
+     (APIs e serviços, Credenciais).
+   - `GOOGLE_ADS_DEVELOPER_TOKEN`: do Centro de API da MCC do Genius no Google Ads.
+   - `GOOGLE_ADS_TOKEN_KEY`: chave Fernet que cifra os tokens dos logins no banco, uma por ambiente
+     (produção e staging com chaves diferentes), gerada com
+     `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+     Trocar a chave invalida os logins já conectados (cada pessoa precisa conectar de novo).
+   - `GOOGLE_ADS_API_VERSION` é opcional (padrão `v23`).
+   - Nunca deixe uma dessas linhas com valor vazio: a validação recusa texto vazio e a api e os
+     workers não sobem. Sem a integração, tire as linhas.
+   - Um segredo ou developer token errado não revoga os logins: as tarefas falham com "o Google
+     recusou as credenciais do Avant" nos logs do `worker-google-ads` até o valor ser corrigido.
 2. No cliente OAuth, em "URIs de redirecionamento autorizados", incluir o endereço do ambiente:
    - produção: `https://avant.groone.com/api/v1/google-ads/oauth/callback`
    - staging: `https://staging.avant.groone.com/api/v1/google-ads/oauth/callback`
 3. Em cada network do GAM, criar a chave de segmentação `utm_keyword` (valores livres), como as
-   outras `utm_*`. O Avant só lê o GAM: sem a chave, a receita por palavra-chave fica vazia.
-4. Deploy na ordem: `scripts/deploy.sh <ambiente> worker <tag>` antes de `api <tag>`, para a fila
-   `google_ads` já ter quem a consuma quando a api começar a mandar tarefas.
-5. Conferir: em Integrações, Google Ads, conectar um login e ver as contas aparecerem em alguns
-   minutos.
+   outras `utm_*`. A ferramenta de key values do painel interno cria as que faltam. Sem a chave, a
+   receita por palavra-chave fica vazia.
+4. Teto de conexões do `avant_app`: o `worker-google-ads` soma conexões, então o teto sobe para 180
+   em produção e 90 em staging (conta em "Conexões com o Postgres"). Num banco que já existe, rodar
+   `ALTER ROLE avant_app CONNECTION LIMIT 180;` (90 em staging) como superusuário. O número vem do
+   `POSTGRES_APP_CONNECTION_LIMIT` do `compose/<ambiente>/vm.env`, que já está atualizado.
+5. Deploy na ordem: `scripts/deploy.sh <ambiente> worker <tag>` antes de `api <tag>`, para a fila
+   `google_ads` já ter quem a consuma quando a api começar a mandar tarefas. O `deploy.sh` já sobe o
+   `worker-google-ads`.
+6. Conferir: em Integrações, Google Ads, conectar um login e ver as contas aparecerem em alguns
+   minutos (`docker compose logs worker-google-ads` mostra a sincronia).
 
 ### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
 
