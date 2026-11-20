@@ -86,6 +86,7 @@ O blue-green sobe a cor nova, espera o healthcheck de todas as réplicas, troca 
    sobe nada sem ele.
 4. `scripts/deploy.sh <ambiente> up`. Depois disso cada merge publica sozinho; para o primeiro deploy, rode os jobs `develop` dos três serviços no Jenkins (API primeiro, por causa das migrations).
 5. Criar a Empresa interna da Groone e o primeiro usuário com o `avant-bootstrap` do avant-core, dentro de um container da API.
+   Só em staging, se quiser dados para navegar: `docker exec -it -e AVANT_DEMO_PASSWORD='uma-senha-forte' avant-staging-api-blue-1 avant-seed-demo --confirm-demo-data <o e-mail do bootstrap>` (use `api-green` se a cor no ar for a verde; o `AVANT_ENV=staging` já está no container e o comando recusa produção). Roda uma vez por banco; ver "Dados de demonstração" no README do avant-core.
 6. Configurar o nginx do host a partir de `nginx/host/avant.conf.example`.
 
 ### Rede com subnet fixa (uma vez por ambiente)

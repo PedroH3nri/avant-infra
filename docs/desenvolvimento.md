@@ -140,13 +140,15 @@ AVANT_BOOTSTRAP_PASSWORD='uma-senha-forte-local' uv run avant-bootstrap voce@gro
 
 O `avant-bootstrap` cria a Company Groone (a Empresa interna) com você como dono e os papéis `groone_admin` e `groone_support`. Rode uma vez por banco: se rodar de novo, ele avisa que a Company já existe.
 
-Para as telas não ficarem vazias, preencha o banco com dados de demonstração (só funciona com `AVANT_ENV=local`, que já está no `dev.env`):
+Para as telas não ficarem vazias, preencha o banco com dados de demonstração (só funciona com `AVANT_ENV=local` ou `staging`; o `local` já está no `dev.env`), com o mesmo e-mail do bootstrap:
 
 ```bash
-AVANT_DEMO_PASSWORD='uma-senha-forte-local' uv run avant-seed-demo voce@groone.com
+AVANT_DEMO_PASSWORD='uma-senha-forte-local' uv run avant-seed-demo --confirm-demo-data voce@groone.com
 ```
 
-Ele cria a Empresa "Portal Notícias (demo)" com você como dono: equipe com papéis variados, convites pendentes, duas networks (uma com erro), sites e ad units. No painel interno aparecem mais dois clientes, um convite de dono e dois MCM sem dono. As pessoas de demonstração têm e-mail `@example.com` e entram com a senha de `AVANT_DEMO_PASSWORD` (sem ela, só aparecem nas listas). Roda uma vez por banco. Para recomeçar do zero, apague o banco e refaça este passo.
+Leva uns 30 segundos. Ele cria a Empresa "Portal Notícias (demo)" com você como dono (equipe com papéis variados, convites pendentes, duas networks, uma com erro, sites e ad units), mais três clientes, um convite de dono e dois MCM sem dono. Depois preenche o que as telas de números e do painel interno usam: 90 dias de métricas do GAM, visitas, cotações, ganhos do MCM, contratos, custos, equipe Groone (Marina, Rafael e Júlia, `@groone.example.com`) com comissão calculada, metas e invoices, relatórios, dashboard, alertas (silenciados por 30 dias), envios (pausados), notas, tarefas, checklist do mês, loader, ad tag publicada e reward com números e contatos. Facebook, Google Ads e regras de preço ficam de fora. A lista completa está no README do avant-core, "Dados de demonstração".
+
+As pessoas de demonstração entram com a senha de `AVANT_DEMO_PASSWORD` (sem ela, só aparecem nas listas); a equipe Groone precisa ativar o 2FA no primeiro login, como qualquer pessoa da Groone. Roda uma vez por banco; num banco em que a versão antiga do comando já rodou, ele só acrescenta a parte nova. Os números vão até o dia anterior e não andam sozinhos. Para recomeçar do zero, apague o banco e refaça este passo.
 
 ## 6. API
 
