@@ -39,7 +39,7 @@ nginx do host (TLS, avant.groone.com / staging.avant.groone.com)
   └─ 127.0.0.1:8080 (produção) ou 127.0.0.1:8081 (staging)
        └─ nginx do stack ─┬─ /api  → api-blue | api-green   (2 réplicas em produção)
                           └─ /     → web-blue | web-green   (2 réplicas em produção)
-  worker (filas default, mail) · worker-gam (fila gam) · worker-facebook (fila facebook) · worker-google-ads (fila google_ads) · scheduler (beat, sempre 1)
+  worker (filas default, mail) · worker-gam (fila gam) · worker-facebook (fila facebook) · worker-google-ads (fila google_ads) · worker-hubspot (fila hubspot) · scheduler (beat, sempre 1)
   postgres · rabbitmq · redis
 ```
 
@@ -56,7 +56,7 @@ Em `/srv/avant/<ambiente>/`, permissão `600` ou `400` nos arquivos. O dono é o
 | Arquivo | Quem escreve | Conteúdo |
 | --- | --- | --- |
 | `compose.env` | Pedro | senhas do Postgres, do RabbitMQ e do Redis (nomes no `.env.example`) |
-| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM, Facebook (`FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_TOKEN_KEY`; ver "Facebook" abaixo), Google Ads (`GOOGLE_ADS_*`; ver "Google Ads" abaixo) |
+| `app.env` | Pedro | segredos da aplicação: sessão, 2FA, e-mail (`MAIL_TRANSPORT=resend` e `RESEND_API_KEY`: sem eles o `deploy.sh` para), Google, GAM, Facebook (`FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_TOKEN_KEY`; ver "Facebook" abaixo), Google Ads (`GOOGLE_ADS_*`; ver "Google Ads" abaixo), HubSpot (`HUBSPOT_*`; ver "HubSpot" abaixo) |
 | `gam-service-account.json` | Pedro | chave da conta de serviço do GAM, montada só no `worker-gam` (dono `10001`, permissão `400`) |
 | `geoip/GeoLite2-Country.mmdb` | Pedro (ou o `geoipupdate`) | base de países da MaxMind para o país das visitas da ad tag, montada só leitura no `worker` (país das visitas) e na `api` (país dos floors das regras de preço) |
 | `release.env` | `deploy.sh` | cor ativa e tag de cada serviço |
@@ -70,7 +70,7 @@ O Jenkins faz o deploy sozinho a cada merge em `develop` (staging) e em `main` (
 scripts/deploy.sh staging up                # Postgres, RabbitMQ, Redis, nginx e o que já estiver ativo
 scripts/deploy.sh staging api <tag>         # migrations com a imagem nova, depois blue-green da API
 scripts/deploy.sh staging web <tag>         # blue-green do painel
-scripts/deploy.sh staging worker <tag>      # worker, worker-gam, worker-facebook, worker-google-ads e scheduler
+scripts/deploy.sh staging worker <tag>      # worker, worker-gam, worker-facebook, worker-google-ads, worker-hubspot e scheduler
 scripts/deploy.sh staging rollback api      # volta para a cor anterior (fica parada, pronta)
 scripts/deploy.sh staging status
 ```
@@ -264,6 +264,35 @@ nada; o resto do Avant funciona normal.
    `worker-google-ads`.
 6. Conferir: em Integrações, Google Ads, conectar um login e ver as contas aparecerem em alguns
    minutos (`docker compose logs worker-google-ads` mostra a sincronia).
+
+### HubSpot (uma vez por ambiente)
+
+A integração com o HubSpot da Groone (decisão 22) manda clientes, networks e contratos para o CRM
+com o token de um app privado do portal da Groone. Sem o token, a tela Integrações > HubSpot mostra
+a integração desligada e o `worker-hubspot` não faz nada; o resto do Avant funciona normal.
+
+1. No portal da Groone no HubSpot, em Configurações > Integrações > Apps privados, o app do Avant
+   com os escopos `crm.objects.contacts.read/write`, `crm.objects.companies.read/write`,
+   `crm.objects.deals.read/write`, `crm.objects.owners.read` e `crm.schemas.contacts.write`,
+   `crm.schemas.companies.write` e `crm.schemas.deals.write` (para criar as propriedades `avant_*`).
+   Sem owners, o dono não é preenchido; sem schemas, as `avant_*` ficam de fora.
+2. No `app.env` do ambiente, para a api e o worker (nunca copiar o token do Genius para um
+   repositório):
+
+   ```
+   HUBSPOT_ACCESS_TOKEN=<token do app privado>
+   HUBSPOT_DEAL_PIPELINE=default
+   HUBSPOT_ACTIVE_STAGE=<id da fase "Ativo" do pipeline Contrato GAM>
+   HUBSPOT_ENDED_STAGE=<id da fase "Encerrado">
+   ```
+
+   Os ids das fases ficam em Configurações > Objetos > Negócios > Pipelines. Sem as fases, os
+   contratos não vão (contatos e empresas vão). Nunca deixe uma linha com valor vazio: tire a linha.
+3. Staging usa o portal de teste, nunca o de produção: os dois ambientes escreveriam nos mesmos
+   registros.
+4. Deploy: `scripts/deploy.sh <ambiente> worker <tag>` sobe o `worker-hubspot`. Conferir em
+   Integrações > HubSpot (a primeira sincronia roda em até 15 minutos, ou em "Sincronizar agora").
+5. Quando o Avant assumir, desligar a sincronia do Genius com o HubSpot.
 
 ### Base GeoLite2 (uma vez por ambiente, atualizada toda semana)
 
