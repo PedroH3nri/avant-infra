@@ -224,6 +224,15 @@ services:
     cpus: ${WORKER_GOOGLE_ADS_CPUS:-1}
     command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "google_ads", "-c", "${WORKER_GOOGLE_ADS_CONCURRENCY:-2}", "-n", "google_ads@%h", "-l", "info"]
 
+  # Fila hubspot (decisão 22): manda clientes, networks e contratos para o HubSpot da Groone.
+  # Lê HUBSPOT_ACCESS_TOKEN e as fases HUBSPOT_ACTIVE_STAGE e HUBSPOT_ENDED_STAGE do app.env;
+  # sem o token, não faz nada. Uma tarefa por vez (a sincronia tem trava).
+  worker-hubspot:
+    <<: *worker
+    mem_limit: ${WORKER_HUBSPOT_MEM_LIMIT:-512m}
+    cpus: ${WORKER_HUBSPOT_CPUS:-0.5}
+    command: ["celery", "-A", "avant_worker.app", "worker", "-Q", "hubspot", "-c", "1", "-n", "hubspot@%h", "-l", "info"]
+
   # Um só agendador por ambiente, senão as tarefas periódicas saem em dobro.
   scheduler:
     <<: *worker

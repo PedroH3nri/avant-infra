@@ -1,17 +1,17 @@
-# Graph Report - avant-infra  (2026-11-19)
+# Graph Report - avant-infra  (2026-11-26)
 
 ## Corpus Check
-- 38 files · ~35,116 words
+- 39 files · ~37,101 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 12 file(s) not represented in the graph (top: (none) 4, .example 3, .env 2)
 
 ## Summary
-- 735 nodes · 911 edges · 54 communities (44 shown, 10 thin omitted)
+- 754 nodes · 939 edges · 56 communities (46 shown, 10 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2d011da9`
+- Built from commit: `4ae0c9ce`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,9 +19,9 @@
 - api
 - Avant: models do MVP
 - services
+- api-green
 - api-blue
-- avant
-- scheduler
+- postgres
 - Groone Avant: contexto do projeto
 - Avant: endpoints da API do MVP
 - deploy.sh
@@ -55,26 +55,28 @@
 - python-checks.sh
 - remote-deploy.sh
 - conferir-subnet.sh
+- redis
 - Avant: grupos na Empresa e imagem da Empresa
 - worker-facebook
-- x-env
+- worker-hubspot
 - x-web
+- 19. Cliente e Empresa em dois cadastros
 - nginx
 - firewall-saida.sh
 - services
 - secrets
 
 ## God Nodes (most connected - your core abstractions)
-1. `options` - 21 edges
-2. `driver` - 19 edges
-3. `services` - 16 edges
+1. `options` - 22 edges
+2. `driver` - 20 edges
+3. `services` - 17 edges
 4. `api-blue` - 15 edges
 5. `api-green` - 15 edges
 6. `Rodar o Avant em modo de desenvolvimento` - 15 edges
 7. `worker` - 14 edges
 8. `worker-gam` - 14 edges
 9. `scheduler` - 14 edges
-10. `Groone Avant: contexto do projeto` - 14 edges
+10. `VMs (staging e produção)` - 14 edges
 
 ## Surprising Connections (you probably didn't know these)
 - None detected - all connections are within the same source files.
@@ -82,7 +84,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (54 total, 10 thin omitted)
+## Communities (56 total, 10 thin omitted)
 
 ### Community 0 - "api"
 Cohesion: 0.08
@@ -96,17 +98,17 @@ Nodes (26): Acesso, AdUnit, ApiKey, AuditLog, Avant: models do MVP, Company, Dec
 Cohesion: 0.07
 Nodes (34): POSTGRES_DB, POSTGRES_PASSWORD_FILE, POSTGRES_USER, RABBITMQ_DEFAULT_PASS, RABBITMQ_DEFAULT_USER, interval, retries, test (+26 more)
 
-### Community 3 - "api-blue"
+### Community 3 - "api-green"
 Cohesion: 0.05
-Nodes (39): cap_drop, cpus, deploy, env_file, image, mem_limit, networks, profiles (+31 more)
+Nodes (39): deploy, cap_drop, cpus, deploy, env_file, image, mem_limit, networks (+31 more)
 
-### Community 4 - "avant"
-Cohesion: 0.17
-Nodes (12): driver_opts, ipam, ipv4_address, name, gateway, ip_range, subnet, com.docker.network.bridge.name (+4 more)
+### Community 4 - "api-blue"
+Cohesion: 0.18
+Nodes (11): cap_drop, cpus, env_file, image, mem_limit, networks, profiles, restart (+3 more)
 
-### Community 5 - "scheduler"
-Cohesion: 0.09
-Nodes (34): depends_on, depends_on, postgres, rabbitmq, redis, condition, condition, condition (+26 more)
+### Community 5 - "postgres"
+Cohesion: 0.15
+Nodes (24): depends_on, depends_on, postgres, rabbitmq, redis, condition, condition, condition (+16 more)
 
 ### Community 6 - "Groone Avant: contexto do projeto"
 Cohesion: 0.12
@@ -121,8 +123,8 @@ Cohesion: 0.39
 Nodes (15): compose(), deploy_color(), die(), ensure_base(), get(), log(), other(), point_nginx() (+7 more)
 
 ### Community 9 - "APP_BASE_URL"
-Cohesion: 0.40
-Nodes (17): environment, environment, APP_BASE_URL, AVANT_ENV, CELERY_BROKER_URL, DATABASE_URL, FORWARDED_ALLOW_IPS, GAM_SERVICE_ACCOUNT_FILE (+9 more)
+Cohesion: 0.39
+Nodes (18): environment, environment, APP_BASE_URL, AVANT_ENV, CELERY_BROKER_URL, DATABASE_URL, FORWARDED_ALLOW_IPS, GAM_SERVICE_ACCOUNT_FILE (+10 more)
 
 ### Community 10 - "postgres"
 Cohesion: 0.12
@@ -145,8 +147,8 @@ Cohesion: 0.17
 Nodes (11): 2FA, Avant: fluxos de login e convite, Com Google, Com senha, Convite e primeiro acesso, Decisões de Pedro (23/10/2026), Endpoints de autenticação, Escolha da Empresa ativa (+3 more)
 
 ### Community 15 - "worker-gam"
-Cohesion: 0.15
-Nodes (13): source, target, worker-gam, cap_drop, command, cpus, env_file, image (+5 more)
+Cohesion: 0.14
+Nodes (14): source, target, worker-gam, cap_drop, command, cpus, env_file, image (+6 more)
 
 ### Community 16 - "migrate"
 Cohesion: 0.17
@@ -170,7 +172,7 @@ Nodes (39): file, file, file, AVANT_PRODUCTION_HOST, AVANT_STAGING_HOST, CASC_JE
 
 ### Community 21 - "nginx"
 Cohesion: 0.06
-Nodes (39): AVANT_GATEWAY_IP, RABBITMQ_DEFAULT_PASS, RABBITMQ_DEFAULT_USER, REDISCLI_AUTH, interval, retries, test, cpus (+31 more)
+Nodes (40): driver_opts, ipam, ipv4_address, name, gateway, ip_range, subnet, com.docker.network.bridge.name (+32 more)
 
 ### Community 22 - "scrape_configs"
 Cohesion: 0.25
@@ -178,11 +180,11 @@ Nodes (7): global, scrape_interval, scrape_configs, job_name, metrics_path, stat
 
 ### Community 23 - "Rodar o Avant em modo de desenvolvimento"
 Cohesion: 0.05
-Nodes (38): 10. Testes, 11. Mudando o avant-core junto com a API ou o worker, 12. Problemas comuns, 1. O que instalar, 2. Clonar os cinco repositórios lado a lado, 3. Subir Postgres, RabbitMQ, Redis e Mailpit, 4. Variáveis da aplicação, 5. Migrations e primeiro usuário (+30 more)
+Nodes (39): 10. Testes, 11. Mudando o avant-core junto com a API ou o worker, 12. Problemas comuns, 1. O que instalar, 2. Clonar os cinco repositórios lado a lado, 3. Subir Postgres, RabbitMQ, Redis e Mailpit, 4. Variáveis da aplicação, 5. Migrations e primeiro usuário (+31 more)
 
 ### Community 24 - "worker"
-Cohesion: 0.18
-Nodes (11): worker, cap_drop, command, cpus, env_file, image, mem_limit, networks (+3 more)
+Cohesion: 0.11
+Nodes (17): worker, cap_drop, command, cpus, env_file, image, mem_limit, networks (+9 more)
 
 ### Community 25 - "celery-exporter"
 Cohesion: 0.18
@@ -228,6 +230,10 @@ Nodes (3): die(), main(), remote-deploy.sh script
 Cohesion: 0.36
 Nodes (5): die(), ip_to_number(), network_range(), overlaps(), conferir-subnet.sh script
 
+### Community 45 - "redis"
+Cohesion: 0.18
+Nodes (11): REDISCLI_AUTH, command, cpus, environment, image, logging, mem_limit, networks (+3 more)
+
 ### Community 46 - "Avant: grupos na Empresa e imagem da Empresa"
 Cohesion: 0.20
 Nodes (9): Avant: grupos na Empresa e imagem da Empresa, Decisões do Pedro (26/10), Herança de comissão e meta, Imagem da Empresa, Issues, Modelo de dados, Regras, Resumo (+1 more)
@@ -236,13 +242,17 @@ Nodes (9): Avant: grupos na Empresa e imagem da Empresa, Decisões do Pedro (26/
 Cohesion: 0.20
 Nodes (10): worker-facebook, cap_drop, command, cpus, env_file, image, mem_limit, networks (+2 more)
 
-### Community 48 - "x-env"
-Cohesion: 0.33
-Nodes (6): x-env, APP_BASE_URL, AVANT_ENV, CELERY_BROKER_URL, DATABASE_URL, REDIS_URL
+### Community 48 - "worker-hubspot"
+Cohesion: 0.20
+Nodes (10): worker-hubspot, cap_drop, command, cpus, env_file, image, mem_limit, networks (+2 more)
 
 ### Community 49 - "x-web"
 Cohesion: 0.29
 Nodes (7): x-web, cpus, deploy, logging, mem_limit, networks, restart
+
+### Community 50 - "19. Cliente e Empresa em dois cadastros"
+Cohesion: 0.40
+Nodes (4): 19. Cliente e Empresa em dois cadastros, Migrations, O que ficou decidido, Painel
 
 ### Community 51 - "nginx"
 Cohesion: 0.06
@@ -262,14 +272,14 @@ Nodes (9): environment, environment, file, environment, secrets, avant-app-passw
 
 ## Knowledge Gaps
 - **7 isolated node(s):** `HOME`, `COREPACK_HOME`, `COREPACK_ENABLE_DOWNLOAD_PROMPT`, `npm_config_store_dir`, `HOME` (+2 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 456 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 470 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `services` connect `services` to `api-blue`, `scheduler`, `postgres`, `web-blue`, `worker-facebook`, `migrate`, `worker-gam`, `nginx`, `worker`, `celery-exporter`, `worker-google-ads`, `web-green`?**
-  _High betweenness centrality (0.101) - this node is a cross-community bridge._
+- **Why does `services` connect `services` to `api-green`, `api-blue`, `postgres`, `web-blue`, `redis`, `worker-facebook`, `migrate`, `worker-gam`, `worker-hubspot`, `nginx`, `worker`, `celery-exporter`, `worker-google-ads`, `web-green`?**
+  _High betweenness centrality (0.106) - this node is a cross-community bridge._
 - **What connects `HOME`, `COREPACK_HOME`, `COREPACK_ENABLE_DOWNLOAD_PROMPT` to the rest of the system?**
   _7 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `api` be split into smaller, more focused modules?**
@@ -278,7 +288,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.016) - this node is a cross-community bridge._
 - **Should `Avant: models do MVP` be split into smaller, more focused modules?**
   _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
-- **Why does `worker-gam` connect `worker-gam` to `APP_BASE_URL`, `options`, `scheduler`, `services`?**
+- **Why does `worker-gam` connect `worker-gam` to `APP_BASE_URL`, `postgres`, `services`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **Should `services` be split into smaller, more focused modules?**
   _Cohesion score 0.0748663101604278 - nodes in this community are weakly interconnected._
