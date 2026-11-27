@@ -215,9 +215,9 @@ variáveis abaixo a api responde `facebook_not_configured` (503) nas rotas do Fa
 4. Conferir: em Integrações, Facebook, conectar um perfil e ver as contas de anúncio aparecerem em
    alguns minutos.
 
-O upload de mídia dos anúncios (`/api/v1/facebook/media`, até 100 MB) já tem o `location` próprio
-nos três nginx; no nginx do host, copie esse bloco do `nginx/host/avant.conf.example` se o arquivo
-da VM for anterior a ele.
+O upload de mídia dos anúncios (`/api/v1/facebook/media`, até 100 MB, e `/api/v1/google-ads/media`,
+até 5 MB) já tem o `location` próprio nos três nginx; no nginx do host, copie esses blocos do
+`nginx/host/avant.conf.example` se o arquivo da VM for anterior a eles.
 
 ### Google Ads (uma vez por ambiente)
 
